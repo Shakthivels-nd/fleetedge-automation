@@ -1,5 +1,5 @@
 import pytest, re
-from pod_utils import connect_to_pod, run_command_on_pod, close_pod_connection, search_logs_in_pod, clean_output
+from src.utils.pod_utils import connect_to_pod, run_command_on_pod, close_pod_connection, search_logs_in_pod, clean_output
 
 # RUN: pytest -v --html=report.html --self-contained-html | tee pytest.log
 

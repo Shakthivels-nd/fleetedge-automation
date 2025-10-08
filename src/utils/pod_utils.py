@@ -1,4 +1,6 @@
 import pexpect,sys,re
+import time
+import re
 
 def connect_to_pod(ip_address: str, username: str = "voyager", password: str = "voyager", pod: str = "netra"):
     """
@@ -47,12 +49,6 @@ def clean_output(output: str) -> str:
     # Remove ANSI escape sequences
     ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
     return ansi_escape.sub('', output).strip()
-
-import time
-import re
-
-import time
-import re
 
 def search_logs_in_pod(child, log_dir: str, search_term: str, timeout: int = 60, interval: int = 5):
     """
