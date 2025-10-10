@@ -1,6 +1,4 @@
 import pexpect,sys,re
-import time
-import re
 
 def connect_to_pod(ip_address: str, username: str = "voyager", password: str = "voyager", pod: str = "netra"):
     """
@@ -16,6 +14,8 @@ def connect_to_pod(ip_address: str, username: str = "voyager", password: str = "
     print(f"Connecting to {ip_address} as {username}...\n")
 
     child = pexpect.spawn(f"sshpass -p {password} {ssh_cmd}", encoding="utf-8", timeout=30)
+    child.sendline("stty -echo")
+    child.expect([r'[#\$] '])
     child.logfile = sys.stdout  # optional: print interaction to stdout
 
 
@@ -26,19 +26,24 @@ def connect_to_pod(ip_address: str, username: str = "voyager", password: str = "
 def run_command_on_pod(child, cmd: str, directory: str = None):
     """
     Run a command inside the already connected pod session.
+    Returns only the output of the current command, excluding the command itself.
     """
     full_cmd = f"cd {directory} && {cmd}" if directory else cmd
     child.sendline(full_cmd)
     child.expect([r'[#\$] ', pexpect.EOF, pexpect.TIMEOUT])
-    # child.before contains everything before the prompt (including the command)
     output_lines = child.before.splitlines()
-    if len(output_lines) > 1:
-        # skip the first line (the echoed command)
-        output = "\n".join(output_lines[1:]).strip()
-    else:
-        output = child.before.strip()
-    
-    print(output)
+
+    # remove echoed command line
+    if output_lines and output_lines[0].strip() == full_cmd.strip():
+        output_lines = output_lines[1:]
+
+    # remove leading empty lines
+    while output_lines and not output_lines[0].strip():
+        output_lines.pop(0)
+
+    output = "\n".join(output_lines).strip()
+    output = clean_output(output)
+    print(f"\n::::::::::::::::::::::OUTPUT START::::::::::::::::::::\n{output}\n::::::::::::::::::OUTPUT END:::::::::::::::::::::::\n")    
     return output
 
 def close_pod_connection(child):
@@ -46,9 +51,33 @@ def close_pod_connection(child):
     child.close()
 
 def clean_output(output: str) -> str:
-    # Remove ANSI escape sequences
+    """
+    Clean command output by removing:
+      - ANSI escape sequences
+      - Shell prompts like 'root@host:/path#' or '$'
+      - Duplicate blank lines
+    """
+    # Remove ANSI escape sequences (colors, cursor moves, etc.)
     ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
-    return ansi_escape.sub('', output).strip()
+    output = ansi_escape.sub('', output)
+
+    # Remove shell prompt lines (root@..., ubuntu@..oot., etc.)
+    prompt_pattern = re.compile(r'\b(?:oot@|netradyne-|homeroot|root@)[^\n]*', re.IGNORECASE)    
+    output = prompt_pattern.sub('', output)
+
+    # Remove trailing/leading whitespace and compress multiple blank lines
+    output = re.sub(r'\n+', '\n', output).strip()
+
+    return output
+
+
+
+
+import time
+import re
+
+import time
+import re
 
 def search_logs_in_pod(child, log_dir: str, search_term: str, timeout: int = 60, interval: int = 5):
     """
@@ -83,23 +112,42 @@ def search_logs_in_pod(child, log_dir: str, search_term: str, timeout: int = 60,
     print(f"\nTimeout reached ({timeout}s). '{search_term}' not found in {log_dir}.\n")
     return None
 
+def verify_file_presence(child, directories, patterns):
+    """
+    Checks for files matching patterns in given directories using the pod connection.
+    Returns a list of dicts with directory, pattern, and count info.
+    """
+    results = []
 
+    for directory in directories:
+        for pattern in patterns:
+            cmd = f"ls {directory} | grep -E '{pattern}' | wc -l"
+            output = run_command_on_pod(child, cmd).strip()
+            
+            # Extract first number from output
+            match = re.search(r'\d+', output)
+            count = int(match.group()) if match else 0
+
+            results.append({
+                "directory": directory,
+                "pattern": pattern,
+                "count": count
+            })
+
+            print(f"Found {count} files in {directory} for pattern '{pattern}'")
+
+    return results
 
 if __name__ == "__main__":
     # Connect to pod
     child = connect_to_pod("172.16.22.119")
 
-    # # Run multiple commands
-    # #user Alert
-    # run_command_on_pod(child, "./gen_ualert.sh", "/home/ubuntu/.nddevice/latest/service/bagheera")
+    #  Run multiple commands
+    run_command_on_pod(child, "./gen_ualert.sh", "/home/ubuntu/.nddevice/latest/service/bagheera")
 
-    # #disk usage
+    # disk usage
     run_command_on_pod(child, "du -sh /data")
-    # run_command_on_pod(child, "lsblk")
-    # run_command_on_pod(child, "free -h")
-
-    # search_logs_in_pod(child, "/home/ubuntu/.nddevice/latest/logs", "Alert sent to user")
 
     # Close connection
-    # close_pod_connection(child)
+    close_pod_connection(child)
 

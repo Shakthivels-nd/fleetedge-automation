@@ -1,5 +1,5 @@
-import pytest, re
-from src.utils.pod_utils import connect_to_pod, run_command_on_pod, close_pod_connection, search_logs_in_pod, clean_output
+import pytest, re, configparser, io
+from src.utils.pod_utils import connect_to_pod, run_command_on_pod, close_pod_connection, search_logs_in_pod, clean_output, verify_file_presence
 
 # RUN: pytest -v --html=report.html --self-contained-html | tee pytest.log
 
@@ -35,7 +35,7 @@ def test_data_disk_usage(pod_connection):
     assert size_gb <= 10, f"/data usage is {size_gb:.2f} GB — exceeds 10 GB limit!"
 
 
-def test_files_present_by_grep(pod_connection):
+def test_mp4_files_present(pod_connection):
     """Check if files starting with 0_trip or 1_trip and ending with .mp4 or .zip exist."""
 
     directories = [
@@ -45,17 +45,13 @@ def test_files_present_by_grep(pod_connection):
 
     patterns = [r"0_trip.*.mp4", r"1_trip.*.mp4"]
 
-    for directory in directories:
-        for pattern in patterns:
-            cmd = f"ls {directory} | grep -E '{pattern}' | wc -l"
-            output = run_command_on_pod(pod_connection, cmd).strip()
-            
-            # Extract first number from output
-            match = re.search(r'\d+', output)
-            count = int(match.group()) if match else 0
-
-            assert count > 0, f"No files found in {directory} matching pattern: {pattern}"
-            print(f"Found {count} files in {directory} for pattern '{pattern}'")
+    results =  verify_file_presence(pod_connection, directories, patterns)
+    for result in results:
+        directory = result["directory"]
+        pattern = result["pattern"]
+        count = result["count"]
+        assert count > 0, f"No files matching '{pattern}' found in {directory}"
+        print(f"Found {count} files matching '{pattern}' in {directory}")
 
 def test_expected_services_running(pod_connection):
     """Check if specific expected services are running."""
@@ -63,25 +59,25 @@ def test_expected_services_running(pod_connection):
     expected_services = [
         "HealthStatsManager",
         "SendMetricgRPC",
-        "nd_suspendresume",
-        "nd_system_status",
-        "service_mon",
         "analyticsService",
         "audioPlayback",
         "awsiot",
         "bagheera",
         "btfv",
         "circular_buffer",
-        "inertialAnalyticsClient",
         "inwardAnalyticsClient",
+        "nd_fe_alerts",
+        "nd_suspendresume",
+        "nd_system_status",
         "outwardAnalyticsClient",
-        "overspeedClient",
+        "podlogger",
         "power_monitor",
         "scheduler_manager",
         "service_mon",
         "speed",
         "svc",
         "time_sync",
+        "unifiedAnalyticsClient",
         "uploader",
     ]
 
@@ -104,10 +100,51 @@ def test_expected_services_running(pod_connection):
         assert service_status == "RUNNING", f"Service '{service}' is not running (status: {service_status})"
         print(f"Service '{service}' is running")
 
-# def test_search_logs_positive(pod_connection):
-#     """✅ Test: Search for an expected log entry."""
-#     result = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/latest/logs", "Alert sent to user", timeout=10)
-#     assert result is not None, "❌ Expected log message not found in logs."
+def test_ini_fields_present(pod_connection):
+    """
+    Test to verify that all expected fields are present in device .ini files inside the pod.
+    Uses Python's built-in configparser to parse the .ini contents.
+    """
+    ini_files = [
+        "/home/ubuntu/config/deviceconfig.ini",
+        "/home/ubuntu/.nddevice/nddevice.ini"
+    ]
+
+    expected_fields = {
+        "deviceconfig.ini": {
+            "identity": ["deviceid", "sessionid", "devicetype", "devicesubtype"],
+            "vehicle": ["vehclass"],
+            "cleanup": ["lanecal", "savemp4"]
+        },
+        "nddevice.ini": {
+            "version": ["nddevice", "state"],
+            "upgrade": ["nddevice", "state"],
+            "other": ["state"]
+        }
+    }
+    for ini_file in ini_files:
+        filename = ini_file.split("/")[-1]
+        cmd = f"cat {ini_file}"
+        output = run_command_on_pod(pod_connection, cmd)
+        output = clean_output(output)
+
+        config = configparser.ConfigParser()
+        config.read_file(io.StringIO(output))
+
+        for section, fields in expected_fields.get(filename, {}).items():
+            assert config.has_section(section), f"Section '{section}' missing in {filename}"
+            for field in fields:
+                assert config.has_option(section, field), f"Field '{field}' missing in section '{section}' of {filename}"
+                value = config.get(section, field)
+                assert value, f"Field '{field}' in section '{section}' of {filename} is empty"
+                print(f"Field '{field}' in section '{section}' of {filename} has value: {value}")
+ 
+def test_gen_useralert_log(pod_connection):
+    """Test: Generate a user alert log entry."""
+    cmd = "./gen_ualert.sh"
+    output = run_command_on_pod(pod_connection, cmd, "/home/ubuntu/.nddevice/latest/service/bagheera")
+    assert "User alert is generated..!!!" in output, "Expected confirmation message not found in output"
+    print("User alert log entry generated successfully.")
 
 
 # def test_search_logs_negative(pod_connection):
