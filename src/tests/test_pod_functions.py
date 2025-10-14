@@ -1,8 +1,18 @@
 import configparser
 import io
 import pytest, re
-from src.utils.pod_utils import connect_to_pod, run_command_on_pod, close_pod_connection, search_logs_in_pod, clean_output, verify_file_presence, clean_output,check_ota_md5sum,check_no_legacy_package_exists,list_log_folder_contents,check_and_print_uptime
-
+from src.utils.pod_utils import (
+    connect_to_pod,
+    run_command_on_pod,
+    close_pod_connection,
+    search_logs_in_pod,
+    clean_output,
+    verify_file_presence,
+    check_ota_md5sum,
+    check_no_legacy_package_exists,
+    list_log_folder_contents,
+    validate_services_uptime_diff,
+)
 
 # RUN:  pytest src/tests/ -v --capture=tee-sys --html=src/reports/report.html --self-contained-html | tee pytest.log
 
@@ -279,7 +289,7 @@ def test_list_log_folder_contents(pod_connection):
     list_log_folder_contents(pod_connection)
 
 def test_service_uptime(pod_connection):
-    check_and_print_uptime(pod_connection,max_diff_seconds=5)
+    validate_services_uptime_diff(pod_connection, max_diff_seconds=5)
 
 def test_video_encryption_config(pod_connection):
     """
@@ -371,7 +381,7 @@ def test_summary_json_files_generated(pod_connection):
     """
     Check if summary.json file is generated in /data/nd_files/log/unifieduploader
     """
-    print("This test is to verify if the summmary.json file is generated once an alert is generated")
+    print("This test is to verify if the summary.json file is generated once an alert is generated")
     cmd = "./gen_ualert.sh"
     output = run_command_on_pod(pod_connection, cmd, "/home/ubuntu/.nddevice/latest/service/bagheera")
     assert "User alert is generated..!!!" in output, "Expected confirmation message not found in output"

@@ -1,4 +1,7 @@
-import pexpect, sys, re, time
+import pexpect
+import sys
+import re
+import time
 
 def connect_to_pod(ip_address: str, username: str = "voyager", password: str = "voyager", pod: str = "netra"):
     """
@@ -210,7 +213,7 @@ def list_log_folder_contents(pod_connection, directory="/data/nd_files/log"):
     return output
 
 
-def check_and_print_uptime(pod_connection, directory="/home/ubuntu/.nddevice/latest/service", max_diff_seconds=5):
+def validate_services_uptime_diff(pod_connection, directory="/home/ubuntu/.nddevice/latest/service", max_diff_seconds=5):
     """
     Print all running services with uptime and check if the maximum difference
     between uptimes is within max_diff_seconds.
