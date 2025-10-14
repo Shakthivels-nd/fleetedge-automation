@@ -1,6 +1,9 @@
 import configparser
 import io
-import pytest, re
+import pytest
+import re
+import time
+
 from src.utils.pod_utils import (
     connect_to_pod,
     run_command_on_pod,
@@ -13,6 +16,7 @@ from src.utils.pod_utils import (
     list_log_folder_contents,
     validate_services_uptime_diff,
 )
+from src.utils.pod_utils import connect_to_pod, run_command_on_pod, close_pod_connection, search_logs_in_pod, clean_output, verify_file_presence
 
 # RUN:  pytest src/tests/ -v --capture=tee-sys --html=src/reports/report.html --self-contained-html | tee pytest.log
 
@@ -234,6 +238,7 @@ def test_size_of_inward_mp4_file_before_alert_is_8bytes(pod_connection):
 
 def test_size_of_outward_mp4_file_after_alert_is_greter_than_44MB(pod_connection):
     """Test: Check size of mp4 files after generating user alert."""
+    start_timestamp = int(time.time())
     generated = run_command_on_pod(pod_connection, "./gen_ualert.sh", "/home/ubuntu/.nddevice/latest/service/bagheera")
     assert generated is not None, "User alert generation command executed."
 

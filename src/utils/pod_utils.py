@@ -2,7 +2,10 @@ import pexpect
 import sys
 import re
 import time
+from .logger import setup_logger
 
+
+logger = setup_logger()
 def connect_to_pod(ip_address: str, username: str = "voyager", password: str = "voyager", pod: str = "netra"):
     """
     Establish a persistent SSH session into a pod using pexpect.
@@ -14,7 +17,7 @@ def connect_to_pod(ip_address: str, username: str = "voyager", password: str = "
         "-- bash"
     )
     ssh_cmd = f"ssh {username}@{ip_address} -tt '{remote_cmd}'"
-    print(f"Connecting to {ip_address} as {username}...\n")
+    logger.info(f"Connecting to pod at {ip_address} as {username}...")
 
     child = pexpect.spawn(f"sshpass -p {password} {ssh_cmd}", encoding="utf-8", timeout=30)
     child.sendline("stty -echo")
@@ -23,7 +26,7 @@ def connect_to_pod(ip_address: str, username: str = "voyager", password: str = "
 
 
     child.expect([r'[#\$] ', pexpect.EOF, pexpect.TIMEOUT])  # wait for pod bash prompt
-    print(f"Connected to pod '{pod}'!\n")
+    logger.info(f"Connected to pod at {ip_address} as {username}")
     return child
 
 def run_command_on_pod(child, cmd: str, directory: str = None):
@@ -33,7 +36,11 @@ def run_command_on_pod(child, cmd: str, directory: str = None):
     """
     full_cmd = f"cd {directory} && {cmd}" if directory else cmd
     child.sendline(full_cmd)
-    child.expect([r'[#\$] ', pexpect.EOF, pexpect.TIMEOUT])
+    try:
+        child.expect([r'[#\$] ', pexpect.EOF, pexpect.TIMEOUT], timeout=30)
+    except pexpect.TIMEOUT:
+        logger.error(f"Command timed out: {full_cmd}")
+        return ""
     output_lines = child.before.splitlines()
 
     # remove echoed command line
@@ -46,8 +53,9 @@ def run_command_on_pod(child, cmd: str, directory: str = None):
 
     output = "\n".join(output_lines).strip()
     output = clean_output(output)
-    print(f"\n::::::::::::::::::::::OUTPUT START::::::::::::::::::::\n{output}\n::::::::::::::::::OUTPUT END:::::::::::::::::::::::\n")    
-    return output
+    logger.info(f"Command: {full_cmd}")
+    logger.info(f"Output:\n{output}")  
+    return output if output else None
 
 def close_pod_connection(child):
     child.sendline("exit")
@@ -74,38 +82,57 @@ def clean_output(output: str) -> str:
     return output
 
 
-def search_logs_in_pod(child, log_dir: str, search_term: str, timeout: int = 60, interval: int = 5):
+def search_logs_in_pod(child, log_dir: str, search_term: str, start_timestamp: int = None, timeout: int = 60, interval: int = 5):
     """
-    Periodically search for a term in all .log files inside a log directory within the pod.
+    Periodically search for a term in all .log files inside a log directory within the pod,
+    considering only logs after a given start time
     
+    stamp.
+
     Args:
         child: pexpect session object connected to the pod.
         log_dir: Path to the directory containing log files.
         search_term: Text or regex pattern to search for.
+        start_timestamp: Epoch timestamp marking the start of the test.
         timeout: Max time (seconds) to search before giving up.
         interval: Delay (seconds) between each search attempt.
 
     Returns:
         str: Matching log line(s) if found, else None.
     """
-    print(f"Searching for '{search_term}' inside {log_dir}/*.log for up to {timeout}s...\n")
+    
+    if start_timestamp is None:
+        start_timestamp = int(time.time())*1000  # current time in ms
+    
+    logger.info(f"Searching for '{search_term}' in logs at {log_dir} after timestamp {start_timestamp} with timeout {timeout}s...")
     end_time = time.time() + timeout
 
     while time.time() < end_time:
-        # Use grep to recursively search all .log files, suppress errors
+        # Use grep to search all .log files, suppress errors
         cmd = f"grep -Hn '{search_term}' {log_dir}/*.log 2>/dev/null || true"
         output = run_command_on_pod(child, cmd)
 
-        # If grep finds something, output contains file names and lines
-        if re.search(search_term, output, re.IGNORECASE):
-            print(f"\nFound '{search_term}' in logs:\n{output}\n")
-            return output
-        else:
-            print(f"⏳ '{search_term}' not found yet. Retrying in {interval}s...\n")
-            time.sleep(interval)
+        if output:
+            # Filter lines based on timestamp
+            filtered_lines = []
+            for line in output.splitlines():
+                match = re.match(r"(\d+):", line)
+                if match:
+                    timestamp = int(match.group(1))
+                    if timestamp >= start_timestamp:
+                        filtered_lines.append(line)
 
-    print(f"\nTimeout reached ({timeout}s). '{search_term}' not found in {log_dir}.\n")
+            if filtered_lines:
+                result = "\n".join(filtered_lines)
+                print(f"\nFound '{search_term}' in logs after {start_timestamp}:\n{result}\n")
+                return result
+
+        print(f"⏳ '{search_term}' not found yet after {start_timestamp}. Retrying in {interval}s...\n")
+        time.sleep(interval)
+
+    logger.warning(f"Timeout reached. '{search_term}' not found in logs after {start_timestamp}.")
     return None
+
 
 def verify_file_presence(child, directories, patterns):
     """
@@ -129,7 +156,7 @@ def verify_file_presence(child, directories, patterns):
                 "count": count
             })
 
-            print(f"Found {count} files in {directory} for pattern '{pattern}'")
+            logger.info(f"Directory: {directory}, Pattern: {pattern}, Count: {count}")
 
     return results
 def check_ota_md5sum(pod_connection, ota_version, directory="/home/ubuntu/.nddevice"):
