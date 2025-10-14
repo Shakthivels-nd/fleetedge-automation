@@ -1,7 +1,7 @@
 import pytest, re, configparser, io
 from src.utils.pod_utils import connect_to_pod, run_command_on_pod, close_pod_connection, search_logs_in_pod, clean_output, verify_file_presence
 
-# RUN: pytest -v --html=report.html --self-contained-html | tee pytest.log
+# RUN:  pytest src/tests/ -v --capture=tee-sys --html=src/reports/report.html --self-contained-html | tee pytest.log
 
 @pytest.fixture(scope="module")
 def pod_connection():
@@ -139,12 +139,121 @@ def test_ini_fields_present(pod_connection):
                 assert value, f"Field '{field}' in section '{section}' of {filename} is empty"
                 print(f"Field '{field}' in section '{section}' of {filename} has value: {value}")
  
-def test_gen_useralert_log(pod_connection):
+def test_gen_useralert_and_video_upload(pod_connection):
     """Test: Generate a user alert log entry."""
     cmd = "./gen_ualert.sh"
     output = run_command_on_pod(pod_connection, cmd, "/home/ubuntu/.nddevice/latest/service/bagheera")
     assert "User alert is generated..!!!" in output, "Expected confirmation message not found in output"
     print("User alert log entry generated successfully.")
+
+    found_event_upload = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/unifieduploader", "Upload successful for 0_trip", timeout=600, interval=10)
+    assert found_event_upload is not None, "Upload successful log entry not found within timeout period."
+
+    file = found_event_upload.split()[-1]
+    print(f"Upload successful log entry found, file: {file}")
+
+    awsiot_req_found = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/awsiot", f"sending REQ_UPLOAD_VOD to uploader for file: /media/SdCard/{file}", timeout=600, interval=10)
+    assert awsiot_req_found is not None, "REQ_UPLOAD_VOD log entry not found within timeout period."
+    print("REQ_UPLOAD_VOD log entry found successfully.")
+
+    video_upload_found = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/unifieduploader", f"Upload successful for video: /media/SdCard/{file}", timeout=600, interval=10)
+    assert video_upload_found is not None, "Video upload log entry not found within timeout period."
+    print("Video upload log entry found successfully.")
+
+
+def test_inward_video_file_encryption(pod_connection):
+    """Test: Verify that video files in /media/SdCard are encrypted (not plain .mp4)."""
+    cmd = "ffprobe /home/iriscli/files/1_trip*.mp4 2>&1 | grep -q 'moov atom not found' && echo 'True' || echo 'False'"
+    output = run_command_on_pod(pod_connection, cmd).strip()
+    
+    assert output == "True", "Inward Video files are encrypted as expected."
+    print("Video files are encrypted as expected.")
+
+def test_outward_video_file_encryption(pod_connection):
+    """Test: Verify that video files in /media/SdCard are encrypted (not plain .mp4)."""
+    cmd = "ffprobe /home/iriscli/files/0_trip*.mp4 2>&1 | grep -q 'moov atom not found' && echo 'True' || echo 'False'"
+    output = run_command_on_pod(pod_connection, cmd).strip()
+    
+    assert output == "True", "Outward Video files are encrypted as expected."
+    print("Video files are encrypted as expected.")
+
+
+def test_size_of_outward_mp4_file_before_alert_is_8bytes(pod_connection):
+    """Test: Check size of mp4 files before generating user alert."""
+    cmd = "ls -lh /home/iriscli/files/0_trip*.mp4 | awk '{print $5}'"
+    output = run_command_on_pod(pod_connection, cmd).strip()
+    
+    size_str = output.split()[0]  # e.g., '500M'
+    
+    # convert to bytes
+    if size_str.endswith("G"):
+        size_bytes = float(size_str[:-1]) * (1024**3)
+    elif size_str.endswith("M"):
+        size_bytes = float(size_str[:-1]) * (1024**2)
+    elif size_str.endswith("K"):
+        size_bytes = float(size_str[:-1]) * 1024
+    else:  # assume bytes
+        size_bytes = float(size_str)
+
+    assert size_bytes == 8, f"Size of mp4 file is {size_bytes} bytes, expected 8 bytes before alert generation."
+    print(f"Size of mp4 file before alert generation is {size_bytes} bytes as expected.")
+
+def test_size_of_inward_mp4_file_before_alert_is_8bytes(pod_connection):
+    """Test: Check size of mp4 files before generating user alert."""
+    cmd = "ls -lh /home/iriscli/files/1_trip*.mp4 | awk '{print $5}'"
+    output = run_command_on_pod(pod_connection, cmd).strip()
+    
+    size_str = output.split()[0]  # e.g., '500M'
+    
+    # convert to bytes
+    if size_str.endswith("G"):
+        size_bytes = float(size_str[:-1]) * (1024**3)
+    elif size_str.endswith("M"):
+        size_bytes = float(size_str[:-1]) * (1024**2)
+    elif size_str.endswith("K"):
+        size_bytes = float(size_str[:-1]) * 1024
+    else:  # assume bytes
+        size_bytes = float(size_str)
+
+    assert size_bytes == 8, f"Size of mp4 file is {size_bytes} bytes, expected 8 bytes before alert generation."
+    print(f"Size of mp4 file before alert generation is {size_bytes} bytes as expected.")
+
+def test_size_of_outward_mp4_file_after_alert_is_greter_than_44MB(pod_connection):
+    """Test: Check size of mp4 files after generating user alert."""
+    generated = run_command_on_pod(pod_connection, "./gen_ualert.sh", "/home/ubuntu/.nddevice/latest/service/bagheera")
+    assert generated is not None, "User alert generation command executed."
+
+    found = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/unifieduploader", "VOD req received", timeout=600, interval=10)
+    assert found is not None, "VOD req received log entry found within timeout period."
+
+    cmd = r"grep -oP '(?<=Copied )\d+(?=bytes)' /home/ubuntu/.nddevice/log/unifieduploader/* | sed 's/.*://' | sort -n | uniq | tail -1"
+    output = run_command_on_pod(pod_connection, cmd)
+    
+    size_str = output.split()[0]  # e.g., '500M'
+    print(f"Output size string: {size_str}")
+    # convert to megabytes
+    size_mb = float(size_str) / (1024**2)
+
+    assert 42 < size_mb < 44, f"Size of mp4 file is {size_mb:.2f} MB, expected greater than 44 MB after alert generation."
+    print(f"Size of mp4 file after alert generation is {size_mb:.2f} MB as expected.")
+
+def test_size_of_inward_mp4_file_after_alert_is_with_14MB_and_15MB(pod_connection):
+    """Test: Check size of mp4 files after generating user alert."""
+    generated = run_command_on_pod(pod_connection, "./gen_ualert.sh", "/home/ubuntu/.nddevice/latest/service/bagheera")
+    assert generated is not None, "User alert generation command executed."
+
+    found = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/unifieduploader", "VOD req received", timeout=600, interval=10)
+    assert found is not None, "VOD req received log entry found within timeout period."
+
+    cmd = r"grep -oP '(?<=Copied )\d+(?=bytes)' /home/ubuntu/.nddevice/log/unifieduploader/* | sed 's/.*://' | sort -n | uniq | head -1"
+    output = run_command_on_pod(pod_connection, cmd).strip()
+    
+    size_str = output.split()[0]  # e.g., '500M'
+    
+    # convert to megabytes
+    size_mb = float(size_str) / (1024**2)
+    assert 14 < size_mb < 15, f"Size of mp4 file is {size_mb:.2f} MB, expected between 14 MB and 15 MB after alert generation."
+    print(f"Size of mp4 file after alert generation is {size_mb:.2f} MB as expected.")
 
 
 # def test_search_logs_negative(pod_connection):
