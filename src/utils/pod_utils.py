@@ -1,4 +1,7 @@
-import pexpect,sys,re
+import pexpect
+import sys
+import re
+import time
 
 def connect_to_pod(ip_address: str, username: str = "voyager", password: str = "voyager", pod: str = "netra"):
     """
@@ -71,14 +74,6 @@ def clean_output(output: str) -> str:
     return output
 
 
-
-
-import time
-import re
-
-import time
-import re
-
 def search_logs_in_pod(child, log_dir: str, search_term: str, timeout: int = 60, interval: int = 5):
     """
     Periodically search for a term in all .log files inside a log directory within the pod.
@@ -137,6 +132,138 @@ def verify_file_presence(child, directories, patterns):
             print(f"Found {count} files in {directory} for pattern '{pattern}'")
 
     return results
+def check_ota_md5sum(pod_connection, ota_version, directory="/home/ubuntu/.nddevice"):
+    """
+    Check the md5sum of a given OTA in the specified directory.
+    """
+    print("Check the md5sum of a given OTA in the specified directory")
+    print(f"Checking md5sum for OTA: {ota_version} in {directory}")
+
+    cmd = f"cd {directory} && md5sum {ota_version}"
+    output = run_command_on_pod(pod_connection, cmd).strip()
+
+    # Split into lines to find the one that contains the md5 hash
+    lines = [line.strip() for line in output.splitlines()]
+    md5_line = None
+    for line in lines:
+        if re.match(r"^[a-fA-F0-9]{32}\s+", line):
+            md5_line = line
+            break
+
+    if not md5_line:
+        raise AssertionError(f"Failed to parse md5sum output:\n{output}")
+
+    md5_hash = md5_line.split()[0]
+    print(f"✅ MD5 checksum for {ota_version}: {md5_hash}")
+    return md5_hash
+
+def check_no_legacy_package_exists(pod_connection, ota_version, directory="/home/ubuntu/.nddevice"):
+    """
+    Ensure that only the specified OTA file exists in the directory.
+    """
+    print("Ensure no legacy OTA packages exist except the specified one")
+    print(f"Verifying only OTA present: {ota_version} in {directory}")
+
+    # Use `find` instead of `ls` to avoid shell prompt noise
+    cmd = f"cd {directory} && find . -maxdepth 1 -type f -name '*.tar.gz' -printf '%f\n'"
+    output = run_command_on_pod(pod_connection, cmd).strip()
+
+    # Split and clean lines
+    lines = [line.strip() for line in output.splitlines() if line.strip()]
+
+    # Filter valid `.tar.gz` files
+    ota_files = [
+    f.lstrip("> ").strip()
+    for f in lines
+    if f.strip().endswith(".tar.gz")
+]
+
+    if not ota_files:
+        raise AssertionError(
+            f"No OTA *.tar.gz files found in {directory}. Raw output:\n{output}"
+        )
+
+    other_otas = [f for f in ota_files if f != ota_version]
+
+    if ota_version not in ota_files:
+        raise AssertionError(
+            f"Requested OTA '{ota_version}' not found. Found: {ota_files}"
+        )
+
+    if other_otas:
+        raise AssertionError(f"Unexpected OTA files present: {other_otas}")
+
+    print(f"Only the specified OTA '{ota_version}' exists in {directory}")
+    return True
+
+def list_log_folder_contents(pod_connection, directory="/data/nd_files/log"):
+    """
+    List the contents of the log folder on the pod.
+    Just runs `ls -lh` and prints/returns the output.
+    """
+    print(f"Listing contents of: {directory}")
+
+    cmd = f"cd {directory} && ls -lh"
+    output = run_command_on_pod(pod_connection, cmd)
+
+    print(":::::::::::: LOG DIRECTORY CONTENTS ::::::::::::")
+    print(output)
+    print("::::::::::::::::::::::::::::::::::::::::::::::::")
+
+    return output
+
+
+def validate_services_uptime_diff(pod_connection, directory="/home/ubuntu/.nddevice/latest/service", max_diff_seconds=5):
+    """
+    Print all running services with uptime and check if the maximum difference
+    between uptimes is within max_diff_seconds.
+    """
+    cmd = f"cd {directory} && supervisorctl status *"
+    output = run_command_on_pod(pod_connection, cmd)
+
+    uptime_pattern = re.compile(r'^(.*?)\s+RUNNING\s+pid\s+\d+,\s+uptime\s+(\d+:\d+:\d+)', re.MULTILINE)
+
+    services = []
+    uptimes_in_seconds = []
+
+    for line in output.splitlines():
+        match = uptime_pattern.search(line)
+        if match:
+            service_name = match.group(1).strip()
+            uptime_str = match.group(2)
+            h, m, s = map(int, uptime_str.split(':'))
+            total_seconds = h * 3600 + m * 60 + s
+
+            services.append((service_name, uptime_str, total_seconds))
+            uptimes_in_seconds.append(total_seconds)
+
+    if not services:
+        print("No running services found in the directory.")
+        return
+
+    # Print each service and its uptime
+    print("\nService Uptime List:")
+    for svc, uptime_str, seconds in services:
+        print(f"{svc}: {uptime_str} ({seconds} seconds)")
+
+    # Calculate max difference
+    min_uptime = min(uptimes_in_seconds)
+    max_uptime = max(uptimes_in_seconds)
+    diff = max_uptime - min_uptime
+
+    print(f"\nEarliest uptime: {min_uptime} seconds")
+    print(f"Latest uptime:   {max_uptime} seconds")
+    print(f"Difference:       {diff} seconds")
+
+    # Enforce threshold
+    if diff > max_diff_seconds:
+        raise AssertionError(
+            f"Uptime difference ({diff}s) exceeds allowed {max_diff_seconds}s"
+        )
+    else:
+        print(f"\n All services are within {max_diff_seconds} seconds difference.")
+
+
 
 if __name__ == "__main__":
     # Connect to pod

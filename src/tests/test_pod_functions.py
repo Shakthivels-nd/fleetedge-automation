@@ -1,5 +1,18 @@
-import pytest, re, configparser, io
-from src.utils.pod_utils import connect_to_pod, run_command_on_pod, close_pod_connection, search_logs_in_pod, clean_output, verify_file_presence
+import configparser
+import io
+import pytest, re
+from src.utils.pod_utils import (
+    connect_to_pod,
+    run_command_on_pod,
+    close_pod_connection,
+    search_logs_in_pod,
+    clean_output,
+    verify_file_presence,
+    check_ota_md5sum,
+    check_no_legacy_package_exists,
+    list_log_folder_contents,
+    validate_services_uptime_diff,
+)
 
 # RUN:  pytest src/tests/ -v --capture=tee-sys --html=src/reports/report.html --self-contained-html | tee pytest.log
 
@@ -37,7 +50,6 @@ def test_data_disk_usage(pod_connection):
 
 def test_mp4_files_present(pod_connection):
     """Check if files starting with 0_trip or 1_trip and ending with .mp4 or .zip exist."""
-
     directories = [
         "/home/iriscli/files",
         "/media/SdCard"
@@ -57,31 +69,33 @@ def test_expected_services_running(pod_connection):
     """Check if specific expected services are running."""
 
     expected_services = [
-        "HealthStatsManager",
-        "SendMetricgRPC",
-        "analyticsService",
-        "audioPlayback",
-        "awsiot",
-        "bagheera",
-        "btfv",
-        "circular_buffer",
-        "inwardAnalyticsClient",
-        "nd_fe_alerts",
-        "nd_suspendresume",
-        "nd_system_status",
-        "outwardAnalyticsClient",
-        "podlogger",
-        "power_monitor",
-        "scheduler_manager",
-        "service_mon",
-        "speed",
-        "svc",
-        "time_sync",
-        "unifiedAnalyticsClient",
-        "uploader",
-    ]
+    "HealthStatsManager",
+    "SendMetricgRPC",
+    "analyticsService",
+    "audioPlayback",
+    "awsiot",
+    "bagheera",
+    "btfv",
+    "circular_buffer",
+    "cron",
+    "inwardAnalyticsClient",
+    "nd_fe_alerts",
+    "nd_suspendresume",
+    "nd_system_status",
+    "outwardAnalyticsClient",
+    "podlogger",
+    "power_monitor",
+    "scheduler_manager",
+    "service_mon",
+    "speed",
+    "svc",
+    "time_sync",
+    "unifiedAnalyticsClient",
+    "uploader",
+]
 
-    cmd = "supervisorctl status *"
+
+    cmd = "supervisorctl status"
     output = run_command_on_pod(pod_connection, cmd, 'ubuntu/.nddevice/latest/service/')
     output = clean_output(output)
 
@@ -257,6 +271,122 @@ def test_size_of_inward_mp4_file_after_alert_is_with_14MB_and_15MB(pod_connectio
 
 
 # def test_search_logs_negative(pod_connection):
-#     """✅ Test: Ensure non-existent log entry returns None."""
+#     """ Test: Ensure non-existent log entry returns None."""
 #     result = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/latest/logs", "SomeFakeLogEntryXYZ", timeout=5)
 #     assert result is None, "❌ Unexpectedly found a fake log entry!"
+
+def test_ota_md5sum(pod_connection):
+    ota_version = "6.5.39.rc.1.tar.gz"
+    result = check_ota_md5sum(pod_connection, ota_version)
+    print("MD5 result:", result)
+    assert len(result) == 32
+
+def test_only_ota_present(pod_connection):
+    ota_version = "6.5.39.rc.1.tar.gz"
+    check_no_legacy_package_exists(pod_connection, ota_version)
+
+def test_list_log_folder_contents(pod_connection):
+    list_log_folder_contents(pod_connection)
+
+def test_service_uptime(pod_connection):
+    validate_services_uptime_diff(pod_connection, max_diff_seconds=5)
+
+def test_video_encryption_config(pod_connection):
+    """
+    Restart bagheera and verify that logs contain:
+    'video_encryption from config false'
+    """
+    print('This test is to verify video_encryption config log entry after restarting bagheera service.')
+    #  Restart bagheera service
+    restart_cmd = "supervisorctl restart bagheera"
+    output = run_command_on_pod(
+        pod_connection,
+        restart_cmd,
+        "/home/ubuntu/.nddevice/latest/service"
+    )
+    print(f"Restart output:\n{output}")
+
+    # Identify the latest log file in ndcentral
+    log_dir = "/data/nd_files/log/ndcentral"
+    cmd_latest = f"ls -t {log_dir} | head -n 1"
+    latest_file = run_command_on_pod(pod_connection, cmd_latest).strip()
+
+    assert latest_file, "No log files found in ndcentral directory"
+    latest_log_path = f"{log_dir}"
+    print(f"Using latest log file: {latest_log_path}")
+
+    #  Search the log file for the phrase
+    search_term = "video_encryption from config false"
+    grep_cmd = f"grep -air '{search_term}' {latest_log_path} || true"
+    grep_output = run_command_on_pod(pod_connection, grep_cmd)
+
+    print(f"Grep Output:\n{grep_output}")
+
+    #  Assert result
+    assert search_term.lower() in grep_output.lower(), \
+        f"'{search_term}' not found in {latest_log_path}"
+    print(" Found expected log entry for video_encryption")
+
+
+def test_gps_mp4_filename(pod_connection):
+    """Locate latest .mp4 in /home/iriscli/files and extract GPS lat/long and timestamp from filename.
+    Example: 1_trip003e_part0027d0_91.0000_181.0000_0.0_1760424046342_y.mp4
+    We parse: latitude=91.0000 longitude=181.0000 speed=0.0 timestamp=1760424046342 flag=y
+    """
+    print('This test extracts GPS metadata from the latest .mp4 filename in /home/iriscli/files.')
+    target_dir = "/home/iriscli/files"
+    # Get latest mp4 (suppress errors if none, then assert)
+    cmd = f"ls -t {target_dir}/*.mp4 2>/dev/null | head -n 1"
+    latest_path = run_command_on_pod(pod_connection, cmd).strip()
+    assert latest_path, f"No .mp4 files found in {target_dir}"
+    filename = latest_path.split('/')[-1]
+    print(f"Latest mp4 file: {filename}")
+
+    # Regex to capture components
+    pattern = re.compile(r"^[01]_trip\w+_part\w+_(-?\d+\.\d+)_(-?\d+\.\d+)_(-?\d+(?:\.\d+)?)_(\d{10,})_([A-Za-z])\.mp4$")
+    m = pattern.match(filename)
+    assert m, f"Filename does not match expected pattern: {filename}"
+
+    lat_str, lon_str, speed_str, ts_str, flag = m.groups()
+    print(f"Extracted latitude: {lat_str}")
+    print(f"Extracted longitude: {lon_str}")
+    print(f"Extracted timestamp: {ts_str}")
+
+    # Basic assertions (require GPS/timestamp components)
+    assert lat_str and lon_str and ts_str, "Missing expected GPS/timestamp components"
+    assert ts_str.isdigit(), "Timestamp should be all digits"
+
+    lat = float(lat_str)
+    lon = float(lon_str)
+
+    # Sentinel logic: (91.0000, 181.0000) => static / no real GPS data
+    if lat == 91.0 and lon == 181.0:
+        print(" Static values (91.0000, 181.0000) detected: no GPS data (device is static).")
+        has_gps_data = False
+    else:
+        # Validate bounds only when data is real
+        assert -90.0 <= lat <= 90.0, f"Latitude out of bounds: {lat}"
+        assert -180.0 <= lon <= 180.0, f"Longitude out of bounds: {lon}"
+        print("Valid GPS data present (Non static values).")
+        has_gps_data = True
+
+    # Removed global storage; simply assert logic outcome consistency
+    if has_gps_data:
+        print("GPS data confirmed present.")
+    else:
+        print("No real GPS data (device static).")
+
+
+def test_summary_json_files_generated(pod_connection):
+    """
+    Check if summary.json file is generated in /data/nd_files/log/unifieduploader
+    """
+    print("This test is to verify if the summary.json file is generated once an alert is generated")
+    cmd = "./gen_ualert.sh"
+    output = run_command_on_pod(pod_connection, cmd, "/home/ubuntu/.nddevice/latest/service/bagheera")
+    assert "User alert is generated..!!!" in output, "Expected confirmation message not found in output"
+    print("User alert log entry generated successfully.")
+    
+    json_found = search_logs_in_pod(pod_connection, "/data/nd_files/log/unifieduploader", "summary.json found", timeout=600, interval=10)
+    assert json_found is not None, "summary.json file not found within timeout period."
+    print("summary.json file found successfully.")
