@@ -16,7 +16,7 @@ from src.utils.pod_utils import (
     list_log_folder_contents,
     validate_services_uptime_diff,
 )
-from src.utils.pod_utils import connect_to_pod, run_command_on_pod, close_pod_connection, search_logs_in_pod, clean_output, verify_file_presence
+
 
 # RUN:  pytest src/tests/ -v --capture=tee-sys --html=src/reports/report.html --self-contained-html | tee pytest.log
 
@@ -51,23 +51,6 @@ def test_data_disk_usage(pod_connection):
     
     assert size_gb <= 10, f"/data usage is {size_gb:.2f} GB — exceeds 10 GB limit!"
 
-
-def test_mp4_files_present(pod_connection):
-    """Check if files starting with 0_trip or 1_trip and ending with .mp4 or .zip exist."""
-    directories = [
-        "/home/iriscli/files",
-        "/media/SdCard"
-    ]
-
-    patterns = [r"0_trip.*.mp4", r"1_trip.*.mp4"]
-
-    results =  verify_file_presence(pod_connection, directories, patterns)
-    for result in results:
-        directory = result["directory"]
-        pattern = result["pattern"]
-        count = result["count"]
-        assert count > 0, f"No files matching '{pattern}' found in {directory}"
-        print(f"Found {count} files matching '{pattern}' in {directory}")
 
 def test_expected_services_running(pod_connection):
     """Check if specific expected services are running."""
@@ -120,8 +103,8 @@ def test_expected_services_running(pod_connection):
 
 def test_ini_fields_present(pod_connection):
     """
-    Test to verify that all expected fields are present in device .ini files inside the pod.
-    Uses Python's built-in configparser to parse the .ini contents.
+    Test to verify that all expected fields are present in deviceconfig.ini and nddevice.ini files inside the pod.
+    
     """
     ini_files = [
         "/home/ubuntu/config/deviceconfig.ini",
@@ -158,7 +141,7 @@ def test_ini_fields_present(pod_connection):
                 print(f"Field '{field}' in section '{section}' of {filename} has value: {value}")
  
 def test_gen_useralert_and_video_upload(pod_connection):
-    """Test: Generate a user alert log entry."""
+    """Test: Trigger a user alert and verify the respective logs."""
     cmd = "./gen_ualert.sh"
     output = run_command_on_pod(pod_connection, cmd, "/home/ubuntu/.nddevice/latest/service/bagheera")
     assert "User alert is generated..!!!" in output, "Expected confirmation message not found in output"
@@ -281,25 +264,27 @@ def test_size_of_inward_mp4_file_after_alert_is_with_14MB_and_15MB(pod_connectio
 #     assert result is None, "❌ Unexpectedly found a fake log entry!"
 
 def test_ota_md5sum(pod_connection):
+    """Test: Check OTA package MD5 sum."""
     ota_version = "6.5.39.rc.1.tar.gz"
     result = check_ota_md5sum(pod_connection, ota_version)
     print("MD5 result:", result)
     assert len(result) == 32
 
 def test_only_ota_present(pod_connection):
+    """Test: Ensure no legacy package exists when a particular OTA package is present."""
     ota_version = "6.5.39.rc.1.tar.gz"
     check_no_legacy_package_exists(pod_connection, ota_version)
 
 def test_list_log_folder_contents(pod_connection):
+    """Test: List contents of log folder."""
     list_log_folder_contents(pod_connection)
 
 def test_service_uptime(pod_connection):
+    """Test: Validate that service uptimes are within expected range."""
     validate_services_uptime_diff(pod_connection, max_diff_seconds=5)
 
 def test_video_encryption_config(pod_connection):
-    """
-    Restart bagheera and verify that logs contain:
-    'video_encryption from config false'
+    """Test is to check video_encryption config log entry
     """
     print('This test is to verify video_encryption config log entry after restarting bagheera service.')
     #  Restart bagheera service
@@ -311,32 +296,27 @@ def test_video_encryption_config(pod_connection):
     )
     print(f"Restart output:\n{output}")
 
-    # Identify the latest log file in ndcentral
-    log_dir = "/data/nd_files/log/ndcentral"
-    cmd_latest = f"ls -t {log_dir} | head -n 1"
-    latest_file = run_command_on_pod(pod_connection, cmd_latest).strip()
+    log_found = search_logs_in_pod(pod_connection, "/data/nd_files/log/ndcentral", "video_encryption from config false", timeout=300, interval=10)
+    assert log_found is not None, "video_encryption log entry not found within timeout period"
+    print("video_encryption log entry found successfully.")
 
-    assert latest_file, "No log files found in ndcentral directory"
-    latest_log_path = f"{log_dir}"
-    print(f"Using latest log file: {latest_log_path}")
-
-    #  Search the log file for the phrase
-    search_term = "video_encryption from config false"
-    grep_cmd = f"grep -air '{search_term}' {latest_log_path} || true"
-    grep_output = run_command_on_pod(pod_connection, grep_cmd)
-
-    print(f"Grep Output:\n{grep_output}")
-
-    #  Assert result
-    assert search_term.lower() in grep_output.lower(), \
-        f"'{search_term}' not found in {latest_log_path}"
-    print(" Found expected log entry for video_encryption")
-
+def test_summary_json_files_generated(pod_connection):
+    """
+    Check if summary.json file is generated in /data/nd_files/log/unifieduploader
+    """
+    print("This test is to verify if the summary.json file is generated once an alert is generated")
+    cmd = "./gen_ualert.sh"
+    output = run_command_on_pod(pod_connection, cmd, "/home/ubuntu/.nddevice/latest/service/bagheera")
+    assert "User alert is generated..!!!" in output, "Expected confirmation message not found in output"
+    print("User alert log entry generated successfully.")
+    
+    json_found = search_logs_in_pod(pod_connection, "/data/nd_files/log/unifieduploader", "summary.json found", timeout=600, interval=10)
+    assert json_found is not None, "summary.json file not found within timeout period."
+    print("summary.json file found successfully.")
 
 def test_gps_mp4_filename(pod_connection):
-    """Locate latest .mp4 in /home/iriscli/files and extract GPS lat/long and timestamp from filename.
-    Example: 1_trip003e_part0027d0_91.0000_181.0000_0.0_1760424046342_y.mp4
-    We parse: latitude=91.0000 longitude=181.0000 speed=0.0 timestamp=1760424046342 flag=y
+    """
+    This test extracts GPS metadata from the latest .mp4 filename in /home/iriscli/files
     """
     print('This test extracts GPS metadata from the latest .mp4 filename in /home/iriscli/files.')
     target_dir = "/home/iriscli/files"
@@ -381,17 +361,19 @@ def test_gps_mp4_filename(pod_connection):
     else:
         print("No real GPS data (device static).")
 
+def test_mp4_files_present(pod_connection):
+    """Check if files starting with 0_trip or 1_trip and ending with .mp4 or .zip exist."""
+    directories = [
+        "/home/iriscli/files",
+        "/media/SdCard"
+    ]
 
-def test_summary_json_files_generated(pod_connection):
-    """
-    Check if summary.json file is generated in /data/nd_files/log/unifieduploader
-    """
-    print("This test is to verify if the summary.json file is generated once an alert is generated")
-    cmd = "./gen_ualert.sh"
-    output = run_command_on_pod(pod_connection, cmd, "/home/ubuntu/.nddevice/latest/service/bagheera")
-    assert "User alert is generated..!!!" in output, "Expected confirmation message not found in output"
-    print("User alert log entry generated successfully.")
-    
-    json_found = search_logs_in_pod(pod_connection, "/data/nd_files/log/unifieduploader", "summary.json found", timeout=600, interval=10)
-    assert json_found is not None, "summary.json file not found within timeout period."
-    print("summary.json file found successfully.")
+    patterns = [r"0_trip.*.mp4", r"1_trip.*.mp4"]
+
+    results =  verify_file_presence(pod_connection, directories, patterns)
+    for result in results:
+        directory = result["directory"]
+        pattern = result["pattern"]
+        count = result["count"]
+        assert count > 0, f"No files matching '{pattern}' found in {directory}"
+        print(f"Found {count} files matching '{pattern}' in {directory}")

@@ -100,7 +100,6 @@ def search_logs_in_pod(child, log_dir: str, search_term: str, start_timestamp: i
     Returns:
         str: Matching log line(s) if found, else None.
     """
-    
     if start_timestamp is None:
         start_timestamp = int(time.time())*1000  # current time in ms
     
@@ -116,10 +115,16 @@ def search_logs_in_pod(child, log_dir: str, search_term: str, start_timestamp: i
             # Filter lines based on timestamp
             filtered_lines = []
             for line in output.splitlines():
-                match = re.match(r"(\d+):", line)
-                if match:
-                    timestamp = int(match.group(1))
+                parts = line.split(':')
+
+                # Example structure:
+                # parts[0] -> /home/.../log_1760594776000.log
+                # parts[1] -> 118        (line number)
+                # parts[2] -> 1760594844089 (timestamp)
+                if len(parts) > 2 and parts[2].isdigit():
+                    timestamp = int(parts[2])
                     if timestamp >= start_timestamp:
+                        print(f"Matched line with timestamp {timestamp}: {line}")
                         filtered_lines.append(line)
 
             if filtered_lines:
@@ -127,7 +132,7 @@ def search_logs_in_pod(child, log_dir: str, search_term: str, start_timestamp: i
                 print(f"\nFound '{search_term}' in logs after {start_timestamp}:\n{result}\n")
                 return result
 
-        print(f"⏳ '{search_term}' not found yet after {start_timestamp}. Retrying in {interval}s...\n")
+        print(f"Log '{search_term}' not found yet after {start_timestamp}. Retrying in {interval}s...\n")
         time.sleep(interval)
 
     logger.warning(f"Timeout reached. '{search_term}' not found in logs after {start_timestamp}.")
