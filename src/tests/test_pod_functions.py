@@ -15,15 +15,34 @@ from src.utils.pod_utils import (
     check_no_legacy_package_exists,
     list_log_folder_contents,
     validate_services_uptime_diff,
+    reboot_voyager,
+    run_command_on_voyager
 )
+"""
+To run tests and generate HTML report, use the following command:
+# Make sure you have requirements installed: pip install -r requirements.txt
+# Activate pytest environment: source ~/envs/pytest-env/bin/activate
+# Export PYTHONPATH if needed: export PYTHONPATH=$(pwd):$PYTHONPATH
+# RUN: pytest src/tests/ -v --capture=tee-sys --html=src/reports/report.html --self-contained-html | tee pytest.log
 
+"""
 
-# RUN:  pytest src/tests/ -v --capture=tee-sys --html=src/reports/report.html --self-contained-html | tee pytest.log
+@pytest.fixture(scope="module", autouse=True)
+def reboot_voyager_fixture():
+    """
+    Fixture to reboot voyager before tests in this module.
+    And set the voyager to DRIVE mode by sending a redis command.
+    """
+    reboot_voyager()
+    # Set the voyager to DRIVE mode
+    run_command_on_voyager(cmd='redis-cli xadd fe-vehicle-telemetry "*" json "{\"eventType\":\"prnd\", \"value\":\"DRIVE\", \"timestampMs\":\"1728479511759\"}"')
+    yield
+    # No teardown needed
 
 @pytest.fixture(scope="module")
 def pod_connection():
     """Fixture to set up and tear down the pod connection."""
-    child = connect_to_pod("172.16.22.119")
+    child = connect_to_pod()
     yield child
     close_pod_connection(child)
 

@@ -2,11 +2,13 @@ import pexpect
 import sys
 import re
 import time
+import subprocess
 from .logger import setup_logger
 
 
 logger = setup_logger()
-def connect_to_pod(ip_address: str, username: str = "voyager", password: str = "voyager", pod: str = "netra"):
+voyager_ip = "172.16.22.119"
+def connect_to_pod(ip_address: str = voyager_ip, username: str = "voyager", password: str = "voyager", pod: str = "netra"):
     """
     Establish a persistent SSH session into a pod using pexpect.
     Returns the pexpect.spawn object for later command execution.
@@ -28,6 +30,25 @@ def connect_to_pod(ip_address: str, username: str = "voyager", password: str = "
     child.expect([r'[#\$] ', pexpect.EOF, pexpect.TIMEOUT])  # wait for pod bash prompt
     logger.info(f"Connected to pod at {ip_address} as {username}")
     return child
+
+def run_command_on_voyager(ip_address: str = voyager_ip, username: str = "voyager", password: str = "voyager", cmd: str = "ls -l", directory: str = None):
+    """
+    Run a single command on the pod via SSH and return its output.
+    This is a one-off command, not a persistent session.
+    """
+    remote_cmd = f"ssh {username}@{ip_address} -tt '{cmd}'"
+    full_cmd = f"sshpass -p {password} {remote_cmd}"
+    if directory:
+        full_cmd = f"sshpass -p {password} ssh {username}@{ip_address} -tt 'cd {directory} && {cmd}'"
+
+    logger.info(f"Running command on pod at {ip_address}: {cmd}")
+    child = pexpect.spawn(full_cmd, encoding="utf-8", timeout=30)
+    child.expect([r'[#\$] ', pexpect.EOF, pexpect.TIMEOUT], timeout=30)
+    output = child.before.strip()
+    output = clean_output(output)
+    logger.info(f"Command output:\n{output}")
+    return output if output else None
+    
 
 def run_command_on_pod(child, cmd: str, directory: str = None):
     """
@@ -56,6 +77,45 @@ def run_command_on_pod(child, cmd: str, directory: str = None):
     logger.info(f"Command: {full_cmd}")
     logger.info(f"Output:\n{output}")  
     return output if output else None
+
+def reboot_voyager():
+    """Reboot the pod before tests in this module."""
+    print("\n[Setup] Rebooting pod before tests...")
+    run_command_on_voyager(cmd="sudo reboot")
+    # wait for voyager to come back up
+    wait_for_ping(timeout=180, interval=5)
+    
+    # wait until the pod is initialized
+    time.sleep(240)
+    print("[Setup] Pod reboot complete.")
+
+
+def wait_for_ping(ip: str=voyager_ip, timeout: int = 180, interval: int = 5):
+    """
+    Wait until the given IP responds to ping.
+    Returns True if reachable, False if timeout expires.
+    """
+    print(f"[Wait] Waiting for {ip} to respond to ping...")
+
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        try:
+            # For Linux/macOS
+            result = subprocess.run(
+                ["ping", "-c", "1", "-W", "1", ip],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            if result.returncode == 0:
+                print(f"[Wait] {ip} is reachable.")
+                return True
+        except Exception as e:
+            print(f"[Wait] Ping check failed: {e}")
+
+        time.sleep(interval)
+
+    print(f"[Wait] Timeout: {ip} did not respond within {timeout} seconds.")
+    return False
 
 def close_pod_connection(child):
     child.sendline("exit")
