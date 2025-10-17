@@ -2,8 +2,13 @@ import pexpect
 import sys
 import re
 import time
+import subprocess
+from .logger import setup_logger
 
-def connect_to_pod(ip_address: str, username: str = "voyager", password: str = "voyager", pod: str = "netra"):
+
+logger = setup_logger()
+voyager_ip = "172.16.22.119"
+def connect_to_pod(ip_address: str = voyager_ip, username: str = "voyager", password: str = "voyager", pod: str = "netra"):
     """
     Establish a persistent SSH session into a pod using pexpect.
     Returns the pexpect.spawn object for later command execution.
@@ -14,7 +19,7 @@ def connect_to_pod(ip_address: str, username: str = "voyager", password: str = "
         "-- bash"
     )
     ssh_cmd = f"ssh {username}@{ip_address} -tt '{remote_cmd}'"
-    print(f"Connecting to {ip_address} as {username}...\n")
+    logger.info(f"Connecting to pod at {ip_address} as {username}...")
 
     child = pexpect.spawn(f"sshpass -p {password} {ssh_cmd}", encoding="utf-8", timeout=30)
     child.sendline("stty -echo")
@@ -23,8 +28,27 @@ def connect_to_pod(ip_address: str, username: str = "voyager", password: str = "
 
 
     child.expect([r'[#\$] ', pexpect.EOF, pexpect.TIMEOUT])  # wait for pod bash prompt
-    print(f"Connected to pod '{pod}'!\n")
+    logger.info(f"Connected to pod at {ip_address} as {username}")
     return child
+
+def run_command_on_voyager(ip_address: str = voyager_ip, username: str = "voyager", password: str = "voyager", cmd: str = "ls -l", directory: str = None):
+    """
+    Run a single command on the pod via SSH and return its output.
+    This is a one-off command, not a persistent session.
+    """
+    remote_cmd = f"ssh {username}@{ip_address} -tt '{cmd}'"
+    full_cmd = f"sshpass -p {password} {remote_cmd}"
+    if directory:
+        full_cmd = f"sshpass -p {password} ssh {username}@{ip_address} -tt 'cd {directory} && {cmd}'"
+
+    logger.info(f"Running command on pod at {ip_address}: {cmd}")
+    child = pexpect.spawn(full_cmd, encoding="utf-8", timeout=30)
+    child.expect([r'[#\$] ', pexpect.EOF, pexpect.TIMEOUT], timeout=30)
+    output = child.before.strip()
+    output = clean_output(output)
+    logger.info(f"Command output:\n{output}")
+    return output if output else None
+    
 
 def run_command_on_pod(child, cmd: str, directory: str = None):
     """
@@ -33,7 +57,11 @@ def run_command_on_pod(child, cmd: str, directory: str = None):
     """
     full_cmd = f"cd {directory} && {cmd}" if directory else cmd
     child.sendline(full_cmd)
-    child.expect([r'[#\$] ', pexpect.EOF, pexpect.TIMEOUT])
+    try:
+        child.expect([r'[#\$] ', pexpect.EOF, pexpect.TIMEOUT], timeout=30)
+    except pexpect.TIMEOUT:
+        logger.error(f"Command timed out: {full_cmd}")
+        return ""
     output_lines = child.before.splitlines()
 
     # remove echoed command line
@@ -46,8 +74,48 @@ def run_command_on_pod(child, cmd: str, directory: str = None):
 
     output = "\n".join(output_lines).strip()
     output = clean_output(output)
-    print(f"\n::::::::::::::::::::::OUTPUT START::::::::::::::::::::\n{output}\n::::::::::::::::::OUTPUT END:::::::::::::::::::::::\n")    
-    return output
+    logger.info(f"Command: {full_cmd}")
+    logger.info(f"Output:\n{output}")  
+    return output if output else None
+
+def reboot_voyager():
+    """Reboot the pod before tests in this module."""
+    print("\n[Setup] Rebooting pod before tests...")
+    run_command_on_voyager(cmd="sudo reboot")
+    # wait for voyager to come back up
+    wait_for_ping(timeout=180, interval=5)
+    
+    # wait until the pod is initialized
+    time.sleep(240)
+    print("[Setup] Pod reboot complete.")
+
+
+def wait_for_ping(ip: str=voyager_ip, timeout: int = 180, interval: int = 5):
+    """
+    Wait until the given IP responds to ping.
+    Returns True if reachable, False if timeout expires.
+    """
+    print(f"[Wait] Waiting for {ip} to respond to ping...")
+
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        try:
+            # For Linux/macOS
+            result = subprocess.run(
+                ["ping", "-c", "1", "-W", "1", ip],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            if result.returncode == 0:
+                print(f"[Wait] {ip} is reachable.")
+                return True
+        except Exception as e:
+            print(f"[Wait] Ping check failed: {e}")
+
+        time.sleep(interval)
+
+    print(f"[Wait] Timeout: {ip} did not respond within {timeout} seconds.")
+    return False
 
 def close_pod_connection(child):
     child.sendline("exit")
@@ -74,38 +142,60 @@ def clean_output(output: str) -> str:
     return output
 
 
-def search_logs_in_pod(child, log_dir: str, search_term: str, timeout: int = 60, interval: int = 5):
+def search_logs_in_pod(child, log_dir: str, search_term: str, start_timestamp: int = None, timeout: int = 60, interval: int = 5):
     """
-    Periodically search for a term in all .log files inside a log directory within the pod.
-    
+    Periodically search for a term in all .log files inside a log directory within the pod,
+    considering only logs after a given start timestamp.
+
     Args:
         child: pexpect session object connected to the pod.
         log_dir: Path to the directory containing log files.
         search_term: Text or regex pattern to search for.
+        start_timestamp: Epoch timestamp marking the start of the test.
         timeout: Max time (seconds) to search before giving up.
         interval: Delay (seconds) between each search attempt.
 
     Returns:
         str: Matching log line(s) if found, else None.
     """
-    print(f"Searching for '{search_term}' inside {log_dir}/*.log for up to {timeout}s...\n")
+    if start_timestamp is None:
+        start_timestamp = int(time.time()) * 1000  # current time in ms
+    
+    logger.info(f"Searching for '{search_term}' in logs at {log_dir} after timestamp {start_timestamp} with timeout {timeout}s...")
     end_time = time.time() + timeout
 
     while time.time() < end_time:
-        # Use grep to recursively search all .log files, suppress errors
+        # Use grep to search all .log files, suppress errors
         cmd = f"grep -Hn '{search_term}' {log_dir}/*.log 2>/dev/null || true"
         output = run_command_on_pod(child, cmd)
 
-        # If grep finds something, output contains file names and lines
-        if re.search(search_term, output, re.IGNORECASE):
-            print(f"\nFound '{search_term}' in logs:\n{output}\n")
-            return output
-        else:
-            print(f"⏳ '{search_term}' not found yet. Retrying in {interval}s...\n")
-            time.sleep(interval)
+        if output:
+            # Filter lines based on timestamp
+            filtered_lines = []
+            for line in output.splitlines():
+                parts = line.split(':')
 
-    print(f"\nTimeout reached ({timeout}s). '{search_term}' not found in {log_dir}.\n")
+                # Example structure:
+                # parts[0] -> /home/.../log_1760594776000.log
+                # parts[1] -> 118        (line number)
+                # parts[2] -> 1760594844089 (timestamp)
+                if len(parts) > 2 and parts[2].isdigit():
+                    timestamp = int(parts[2])
+                    if timestamp >= start_timestamp:
+                        print(f"Matched line with timestamp {timestamp}: {line}")
+                        filtered_lines.append(line)
+
+            if filtered_lines:
+                result = "\n".join(filtered_lines)
+                print(f"\nFound '{search_term}' in logs after {start_timestamp}:\n{result}\n")
+                return result
+
+        print(f"Log '{search_term}' not found yet after {start_timestamp}. Retrying in {interval}s...\n")
+        time.sleep(interval)
+
+    logger.warning(f"Timeout reached. '{search_term}' not found in logs after {start_timestamp}.")
     return None
+
 
 def verify_file_presence(child, directories, patterns):
     """
@@ -129,7 +219,7 @@ def verify_file_presence(child, directories, patterns):
                 "count": count
             })
 
-            print(f"Found {count} files in {directory} for pattern '{pattern}'")
+            logger.info(f"Directory: {directory}, Pattern: {pattern}, Count: {count}")
 
     return results
 def check_ota_md5sum(pod_connection, ota_version, directory="/home/ubuntu/.nddevice"):
