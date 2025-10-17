@@ -1,4 +1,5 @@
 import pytest
+import math
 
 # PASS/FAIL/ERROR counters
 _results_counter = {'passed': 0, 'failed': 0, 'error': 0}
@@ -43,7 +44,6 @@ def pytest_html_results_summary(prefix, summary, postfix):
     pass_frac = passed / total
     fail_frac = display_failed / total
 
-    import math
     R = 110
     CX = CY = 115
 
