@@ -145,9 +145,7 @@ def clean_output(output: str) -> str:
 def search_logs_in_pod(child, log_dir: str, search_term: str, start_timestamp: int = None, timeout: int = 60, interval: int = 5):
     """
     Periodically search for a term in all .log files inside a log directory within the pod,
-    considering only logs after a given start time
-    
-    stamp.
+    considering only logs after a given start timestamp.
 
     Args:
         child: pexpect session object connected to the pod.
@@ -161,7 +159,7 @@ def search_logs_in_pod(child, log_dir: str, search_term: str, start_timestamp: i
         str: Matching log line(s) if found, else None.
     """
     if start_timestamp is None:
-        start_timestamp = int(time.time())*1000  # current time in ms
+        start_timestamp = int(time.time()) * 1000  # current time in ms
     
     logger.info(f"Searching for '{search_term}' in logs at {log_dir} after timestamp {start_timestamp} with timeout {timeout}s...")
     end_time = time.time() + timeout

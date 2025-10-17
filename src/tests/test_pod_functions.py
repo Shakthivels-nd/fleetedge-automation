@@ -334,9 +334,7 @@ def test_summary_json_files_generated(pod_connection):
     print("summary.json file found successfully.")
 
 def test_gps_mp4_filename(pod_connection):
-    """
-    This test extracts GPS metadata from the latest .mp4 filename in /home/iriscli/files
-    """
+    """This test extracts GPS metadata from the latest .mp4 filename in /home/iriscli/files"""
     print('This test extracts GPS metadata from the latest .mp4 filename in /home/iriscli/files.')
     target_dir = "/home/iriscli/files"
     # Get latest mp4 (suppress errors if none, then assert)
