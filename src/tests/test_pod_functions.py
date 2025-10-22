@@ -160,7 +160,7 @@ def test_ini_fields_present(pod_connection):
                 print(f"Field '{field}' in section '{section}' of {filename} has value: {value}")
  
 def test_gen_useralert_and_video_upload(pod_connection):
-    """Verify triggering an user alert and verify the respective logs."""
+    """Verify triggering a user alert and verify the respective logs."""
     cmd = "./gen_ualert.sh"
     output = run_command_on_pod(pod_connection, cmd, "/home/ubuntu/.nddevice/latest/service/bagheera")
     assert "User alert is generated..!!!" in output, "Expected confirmation message not found in output"
@@ -182,7 +182,7 @@ def test_gen_useralert_and_video_upload(pod_connection):
 
 
 def test_inward_video_file_encryption(pod_connection):
-    """ Verify that inward video files in /media/SdCard are encrypted (not plain .mp4)."""
+    """Verify that inward video files in /media/SdCard are encrypted (not plain .mp4)."""
     cmd = "ffprobe /home/iriscli/files/1_trip*.mp4 2>&1 | grep -q 'moov atom not found' && echo 'True' || echo 'False'"
     output = run_command_on_pod(pod_connection, cmd).strip()
     
@@ -219,7 +219,7 @@ def test_size_of_outward_mp4_file_before_alert_is_8bytes(pod_connection):
     print(f"Size of mp4 file before alert generation is {size_bytes} bytes as expected.")
 
 def test_size_of_inward_mp4_file_before_alert_is_8bytes(pod_connection):
-    """ Check size of inward mp4 files before generating user alert."""
+    """Check size of inward mp4 files before generating user alert."""
     cmd = "ls -lh /home/iriscli/files/1_trip*.mp4 | awk '{print $5}'"
     output = run_command_on_pod(pod_connection, cmd).strip()
     
@@ -259,7 +259,7 @@ def test_size_of_outward_mp4_file_after_alert_is_greter_than_44MB(pod_connection
     print(f"Size of mp4 file after alert generation is {size_mb:.2f} MB as expected.")
 
 def test_size_of_inward_mp4_file_after_alert_is_with_14MB_and_15MB(pod_connection):
-    """ Check size of inward mp4 files after generating user alert."""
+    """Check size of inward mp4 files after generating user alert."""
     generated = run_command_on_pod(pod_connection, "./gen_ualert.sh", "/home/ubuntu/.nddevice/latest/service/bagheera")
     assert generated is not None, "User alert generation command executed."
 
@@ -283,7 +283,7 @@ def test_size_of_inward_mp4_file_after_alert_is_with_14MB_and_15MB(pod_connectio
 #     assert result is None, " Unexpectedly found a fake log entry!"
 
 def test_ota_md5sum(pod_connection):
-    """ Verify OTA package MD5 sum."""
+    """Verify OTA package MD5 sum."""
     ota_version = "6.5.39.rc.1.tar.gz"
     result = check_ota_md5sum(pod_connection, ota_version)
     print("MD5 result:", result)
@@ -295,7 +295,7 @@ def test_only_ota_present(pod_connection):
     check_no_legacy_package_exists(pod_connection, ota_version)
 
 def test_list_log_folder_contents(pod_connection):
-    """ Verify the contents of log folder."""
+    """Verify the contents of log folder."""
     list_log_folder_contents(pod_connection)
 
 def test_service_uptime(pod_connection):
@@ -435,7 +435,7 @@ def test_partial_files_uploaded_to_cloud(pod_connection):
     assert "RUNNING" in status_out, f"bagheera not running after restart. Status: {status_out}"
     print("bagheera service restarted and RUNNING.")
 
-    time.sleep(125)  # brief wait
+    time.sleep(125)  # wait for file upload completion
 
     # Step 4: Verify each recorded file now exists in /media/SdCard
     results = verify_file_presence(pod_connection, ["/media/SdCard"], patterns)
