@@ -160,7 +160,7 @@ def test_ini_fields_present(pod_connection):
                 print(f"Field '{field}' in section '{section}' of {filename} has value: {value}")
  
 def test_gen_useralert_and_video_upload(pod_connection):
-    """Test: Trigger a user alert and verify the respective logs."""
+    """Verify triggering an user alert and verify the respective logs."""
     cmd = "./gen_ualert.sh"
     output = run_command_on_pod(pod_connection, cmd, "/home/ubuntu/.nddevice/latest/service/bagheera")
     assert "User alert is generated..!!!" in output, "Expected confirmation message not found in output"
@@ -182,7 +182,7 @@ def test_gen_useralert_and_video_upload(pod_connection):
 
 
 def test_inward_video_file_encryption(pod_connection):
-    """Test: Verify that video files in /media/SdCard are encrypted (not plain .mp4)."""
+    """ Verify that inward video files in /media/SdCard are encrypted (not plain .mp4)."""
     cmd = "ffprobe /home/iriscli/files/1_trip*.mp4 2>&1 | grep -q 'moov atom not found' && echo 'True' || echo 'False'"
     output = run_command_on_pod(pod_connection, cmd).strip()
     
@@ -190,7 +190,7 @@ def test_inward_video_file_encryption(pod_connection):
     print("Video files are encrypted as expected.")
 
 def test_outward_video_file_encryption(pod_connection):
-    """Test: Verify that video files in /media/SdCard are encrypted (not plain .mp4)."""
+    """Verify that outward video files in /media/SdCard are encrypted (not plain .mp4)."""
     cmd = "ffprobe /home/iriscli/files/0_trip*.mp4 2>&1 | grep -q 'moov atom not found' && echo 'True' || echo 'False'"
     output = run_command_on_pod(pod_connection, cmd).strip()
     
@@ -199,7 +199,7 @@ def test_outward_video_file_encryption(pod_connection):
 
 
 def test_size_of_outward_mp4_file_before_alert_is_8bytes(pod_connection):
-    """Test: Check size of mp4 files before generating user alert."""
+    """Check size of outward mp4 files before generating user alert."""
     cmd = "ls -lh /home/iriscli/files/0_trip*.mp4 | awk '{print $5}'"
     output = run_command_on_pod(pod_connection, cmd).strip()
     
@@ -219,7 +219,7 @@ def test_size_of_outward_mp4_file_before_alert_is_8bytes(pod_connection):
     print(f"Size of mp4 file before alert generation is {size_bytes} bytes as expected.")
 
 def test_size_of_inward_mp4_file_before_alert_is_8bytes(pod_connection):
-    """Test: Check size of mp4 files before generating user alert."""
+    """ Check size of inward mp4 files before generating user alert."""
     cmd = "ls -lh /home/iriscli/files/1_trip*.mp4 | awk '{print $5}'"
     output = run_command_on_pod(pod_connection, cmd).strip()
     
@@ -239,7 +239,7 @@ def test_size_of_inward_mp4_file_before_alert_is_8bytes(pod_connection):
     print(f"Size of mp4 file before alert generation is {size_bytes} bytes as expected.")
 
 def test_size_of_outward_mp4_file_after_alert_is_greter_than_44MB(pod_connection):
-    """Test: Check size of mp4 files after generating user alert."""
+    """Check size of outward mp4 files after generating user alert."""
     start_timestamp = int(time.time())
     generated = run_command_on_pod(pod_connection, "./gen_ualert.sh", "/home/ubuntu/.nddevice/latest/service/bagheera")
     assert generated is not None, "User alert generation command executed."
@@ -259,7 +259,7 @@ def test_size_of_outward_mp4_file_after_alert_is_greter_than_44MB(pod_connection
     print(f"Size of mp4 file after alert generation is {size_mb:.2f} MB as expected.")
 
 def test_size_of_inward_mp4_file_after_alert_is_with_14MB_and_15MB(pod_connection):
-    """Test: Check size of mp4 files after generating user alert."""
+    """ Check size of inward mp4 files after generating user alert."""
     generated = run_command_on_pod(pod_connection, "./gen_ualert.sh", "/home/ubuntu/.nddevice/latest/service/bagheera")
     assert generated is not None, "User alert generation command executed."
 
@@ -280,30 +280,30 @@ def test_size_of_inward_mp4_file_after_alert_is_with_14MB_and_15MB(pod_connectio
 # def test_search_logs_negative(pod_connection):
 #     """ Test: Ensure non-existent log entry returns None."""
 #     result = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/latest/logs", "SomeFakeLogEntryXYZ", timeout=5)
-#     assert result is None, "❌ Unexpectedly found a fake log entry!"
+#     assert result is None, " Unexpectedly found a fake log entry!"
 
 def test_ota_md5sum(pod_connection):
-    """Test: Check OTA package MD5 sum."""
+    """ Verify OTA package MD5 sum."""
     ota_version = "6.5.39.rc.1.tar.gz"
     result = check_ota_md5sum(pod_connection, ota_version)
     print("MD5 result:", result)
     assert len(result) == 32
 
 def test_only_ota_present(pod_connection):
-    """Test: Ensure no legacy package exists when a particular OTA package is present."""
+    """Verify that  no legacy package exists when a particular OTA package is present."""
     ota_version = "6.5.39.rc.1.tar.gz"
     check_no_legacy_package_exists(pod_connection, ota_version)
 
 def test_list_log_folder_contents(pod_connection):
-    """Test: List contents of log folder."""
+    """ Verify the contents of log folder."""
     list_log_folder_contents(pod_connection)
 
 def test_service_uptime(pod_connection):
-    """Test: Validate that service uptimes are within expected range."""
+    """Validate that service uptimes are within expected range."""
     validate_services_uptime_diff(pod_connection, max_diff_seconds=5)
 
 def test_video_encryption_config(pod_connection):
-    """Test is to check video_encryption config log entry
+    """Verify if video_encryption config is set to false
     """
     print('This test is to verify video_encryption config log entry after restarting bagheera service.')
     #  Restart bagheera service
@@ -394,3 +394,53 @@ def test_mp4_files_present(pod_connection):
         count = result["count"]
         assert count > 0, f"No files matching '{pattern}' found in {directory}"
         print(f"Found {count} files matching '{pattern}' in {directory}")
+    
+def test_partial_files_uploaded_to_cloud(pod_connection):
+    """Verify if the partial files are uploaded to cloud 
+    """
+    # Step 1: Latest timestamp from logs 
+    ts_cmd = "grep -aH 'END OF SESSION' *.log | awk -F: '{print $2}' | sort -nr | head -1"
+    latest_ts = run_command_on_pod(pod_connection, ts_cmd, "/data/nd_files/log/ndcentral")
+    assert latest_ts, "Failed to extract latest END OF SESSION timestamp"
+    latest_ts = latest_ts.strip().splitlines()[0]
+    assert latest_ts.isdigit(), f"Extracted timestamp not numeric: {latest_ts}"
+    print(f" Latest END OF SESSION timestamp: {latest_ts}")
+
+    # Step 2: Collect mp4 filenames and extract their timestamps directly
+    list_cmd = "ls 0_trip*.mp4 1_trip*.mp4 2>/dev/null || true"
+    files_raw = run_command_on_pod(pod_connection, list_cmd, "/home/iriscli/files")
+    assert files_raw, "No trip mp4 files found in /home/iriscli/files"
+    candidate_files = [f.strip() for f in files_raw.splitlines() if f.strip()]
+    print(f"Found {len(candidate_files)} mp4 file(s) in /home/iriscli/files:")
+
+    ts_pattern = re.compile(r"^[01]_trip\w+_part\w+_-?\d+\.\d+_-?\d+\.\d+_-?\d+(?:\.\d+)?_(\d{10,})_[A-Za-z]\.mp4$")
+    extracted_timestamps = []
+    for f in candidate_files:
+        print(f"          - {f}")
+        m = ts_pattern.match(f)
+        if m:
+            extracted_timestamps.append(m.group(1))
+        else:
+            print(f"            (No timestamp match pattern for {f})")
+    assert extracted_timestamps, "Failed to extract any timestamps from mp4 filenames"
+    print(f"Extracted {len(extracted_timestamps)} timestamp(s) from filenames: {extracted_timestamps}")
+
+    # Prepare regex patterns for exact filename matches
+    patterns = [r'^' + re.escape(f) + r'$' for f in candidate_files]
+
+    # Step 3: Restart bagheera service 
+    restart_out = run_command_on_pod(pod_connection, "supervisorctl restart bagheera", "/home/ubuntu/.nddevice/latest/service")
+    assert restart_out is not None, "Bagheera restart command produced no output"
+    status_out = run_command_on_pod(pod_connection, "supervisorctl status bagheera", "/home/ubuntu/.nddevice/latest/service")
+    assert "RUNNING" in status_out, f"bagheera not running after restart. Status: {status_out}"
+    print("bagheera service restarted and RUNNING.")
+
+    time.sleep(125)  # brief wait
+
+    # Step 4: Verify each recorded file now exists in /media/SdCard
+    results = verify_file_presence(pod_connection, ["/media/SdCard"], patterns)
+    missing = [candidate_files[i] for i, r in enumerate(results) if r["count"] == 0]
+    for r in results:
+        print(f"[Step4] Pattern {r['pattern']} count in /media/SdCard: {r['count']}")
+    assert not missing, f"Files missing in /media/SdCard after bagheera restart: {missing}"
+    print(f"All {len(candidate_files)} mp4 files are present in /media/SdCard after restart.")
