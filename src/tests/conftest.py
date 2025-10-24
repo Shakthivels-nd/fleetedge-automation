@@ -1,8 +1,50 @@
 import pytest
 import math
+import datetime
+import os
+from dotenv import load_dotenv
 
 # PASS/FAIL/ERROR counters
 _results_counter = {'passed': 0, 'failed': 0, 'error': 0}
+
+load_dotenv()
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--ota-version",
+        action="store",
+        default=os.getenv("OTA_VERSION", "N/A"),
+        help="OTA Version tested"
+    )
+    parser.addoption(
+        "--env",
+        action="store",
+        default=os.getenv("ENVIRONMENT", "Staging"),
+        help="Environment (e.g., staging, prod)"
+    )
+    parser.addoption(
+        "--device-id",
+        action="store",
+        default=os.getenv("DEVICE_ID", "Unknown"),
+        help="Device ID under test"
+    )
+    parser.addoption(
+        "--device-ip",
+        action="store",
+        default=os.getenv("DEVICE_IP", "Unknown"),
+        help="Device IP address under test"
+    )
+
+
+def pytest_configure(config):
+    global custom_env_info
+    custom_env_info = {
+        "Device ID": config.getoption("--device-id"),
+        "Device IP": config.getoption("--device-ip"),
+        "OTA Version": config.getoption("--ota-version"),
+        "Environment": config.getoption("--env"),
+        "Start Time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
@@ -33,6 +75,24 @@ def pytest_html_results_table_row(report, cells):
 @pytest.hookimpl(optionalhook=True)
 def pytest_html_results_summary(prefix, summary, postfix):
     """Inject interactive hover pie chart (no shadow) with static percentage labels and center title + black headers + Total filter."""
+
+    summary.clear()
+    env_table = (
+    "<div style='margin-top:10px; margin-bottom:20px;'>"
+    "<h3 style='color:#000;text-align:left;margin-bottom:6px;'>Device Details</h3>"
+    "<table style='border-collapse:collapse;width:20%;font-size:13px;'>"
+    )
+    for k, v in custom_env_info.items():
+        env_table += (
+            f"<tr>"
+            f"<td style='border:1px solid #ccc;padding:4px 8px;font-weight:bold;width:30%;'>{k}</td>"
+            f"<td style='border:1px solid #ccc;padding:4px 8px;width:70%;'>{v}</td>"
+            f"</tr>"
+        )
+    env_table += "</table></div>"
+
+
+    postfix.extend([env_table])
     passed = _results_counter['passed']
     failed = _results_counter['failed']
     errors = _results_counter['error']
@@ -117,13 +177,30 @@ def pytest_html_results_summary(prefix, summary, postfix):
     )
 
     center_css = "<style>#title{text-align:center;}#results-table th{color:#000;font-weight:bold!important;}#results-table td{color:#000!important;}</style>"
-    header_enhance = "<style>.fe-header-wrapper{position:relative;width:100%;display:flex;justify-content:center;align-items:center;margin:0 0 10px 0;} .fe-header-wrapper img{position:absolute;left:0;top:0;height:46px;width:auto;} h1#title{margin:0 auto;text-align:center;width:100%;} @media (max-width:900px){.fe-header-wrapper img{height:36px;}} </style>"\
+    header_enhance = "<style>.fe-header-wrapper{position:relative;width:100%;display:flex;justify-content:center;align-items:center;margin:0 0 10px 0;} .fe-header-wrapper img{position:absolute;left:0;top:0;height:30px;width:auto;} h1#title{margin:0 auto;text-align:center;width:100%;} @media (max-width:900px){.fe-header-wrapper img{height:36px;}} </style>"\
         "<script>(function(){var h=document.getElementById('title');if(!h)return; if(!h.closest('.fe-header-wrapper')){var wrap=document.createElement('div');wrap.className='fe-header-wrapper';var img=document.createElement('img');img.alt='Logo';img.src='logo.png';/* replace with actual path or base64 */h.parentNode.insertBefore(wrap,h);wrap.appendChild(h);wrap.appendChild(img);} h.textContent='FleetEdge Automation';})();</script>"
 
     # Script to add Total filter checkbox that toggles all status checkboxes
     total_filter_script = "<script>(function(){function init(){var summary=document.querySelector('.summary');if(!summary)return;var p=summary.querySelector('p');if(!p||p.querySelector('#total-filter'))return;var total=document.createElement('input');total.type='checkbox';total.id='total-filter';total.checked=true;var label=document.createElement('label');label.htmlFor='total-filter';label.textContent=' Total';var sep=document.createTextNode(', ');p.insertBefore(sep,p.firstChild);p.insertBefore(label,sep);p.insertBefore(total,label);function syncFromTotal(){p.querySelectorAll('input[data-status]').forEach(cb=>{cb.checked=total.checked;cb.dispatchEvent(new Event('change'));});}total.addEventListener('change',syncFromTotal);p.querySelectorAll('input[data-status]').forEach(cb=>{cb.addEventListener('change',()=>{var all=Array.from(p.querySelectorAll('input[data-status]')).every(x=>x.checked);total.checked=all;});});syncFromTotal();}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}else{init();}})();</script>"
 
-    prefix.extend([center_css, header_enhance, total_filter_script, pie_html])
+    # Build a table for test case counts
+    results_table = "<div style='margin-top:20px;'>"
+    results_table += "<h3 style='color:#000;text-align:left;margin-bottom:6px;'>Test Case Summary</h3>"
+    results_table += "<table style='border-collapse:collapse;width:20%;font-size:13px;'>"
+    results_table += "<tr><th style='border:1px solid #ccc;padding:4px;'>Result</th><th style='border:1px solid #ccc;padding:4px;'>Count</th></tr>"
+
+    # Add each status
+    for k, v in {
+        "Passed": passed,
+        "Fail/Error": display_failed,
+        "Total": total
+    }.items():
+        results_table += f"<tr><td style='border:1px solid #ccc;padding:4px;font-weight:bold;'>{k}</td>"
+        results_table += f"<td style='border:1px solid #ccc;padding:4px;text-align:center;'>{v}</td></tr>"
+
+    results_table += "</table></div>"
+
+    prefix.extend([center_css, header_enhance, total_filter_script, pie_html, results_table])
 
 @pytest.hookimpl(optionalhook=True)
 def pytest_html_report_title(report):
