@@ -58,7 +58,7 @@ def pod_connection():
     close_pod_connection(child)
 
 
-def test_connection_success(pod_connection):
+def test_connection_success_itn2426(pod_connection):
     """Verify pod connection was established successfully."""
     assert pod_connection.isalive(), "Pod connection failed — child process not active."
 
