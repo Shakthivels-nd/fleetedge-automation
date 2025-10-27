@@ -481,7 +481,7 @@ def frequency_based_calls(pod_connection, api_pattern, service_name, expected_in
                 details.append(f"Observed occurrence at {ts}")
                 if len(occurrences) == 1:
                     # Wait until near expected interval before second check
-                    remaining = (target_min * 60) - ((time.time()) - (occurrences[0] / 1000)) + 40
+                    remaining = (target_min * 60) - (time.time() - (occurrences[0] / 1000)) + 40
                     if remaining > 0:
                         details.append(f"Sleeping {int(remaining)}s awaiting second occurrence")
                         time.sleep(min(remaining, 300))  # cap single sleep

@@ -285,7 +285,7 @@ def test_size_of_outward_mp4_file_after_alert_is_greter_than_44MB_itn2630(pod_co
     generated = run_command_on_pod(pod_connection, "./gen_ualert.sh", "/home/ubuntu/.nddevice/latest/service/bagheera")
     assert generated is not None, "User alert generation command executed."
 
-    found = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/unifieduploader", "VOD req received", timeout=600, interval=10)
+    found = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/unifieduploader", "VOD req received",start_timestamp, timeout=600, interval=10)
     assert found is not None, "VOD req received log entry found within timeout period."
 
     cmd = r"grep -oP '(?<=Copied )\d+(?=bytes)' /home/ubuntu/.nddevice/log/unifieduploader/* | sed 's/.*://' | sort -n | uniq | tail -1"
@@ -301,10 +301,11 @@ def test_size_of_outward_mp4_file_after_alert_is_greter_than_44MB_itn2630(pod_co
 
 def test_size_of_inward_mp4_file_after_alert_is_with_14MB_and_15MB_itn2631(pod_connection):
     """Check size of inward mp4 files after generating user alert."""
+    start_timestamp = int(time.time())
     generated = run_command_on_pod(pod_connection, "./gen_ualert.sh", "/home/ubuntu/.nddevice/latest/service/bagheera")
     assert generated is not None, "User alert generation command executed."
 
-    found = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/unifieduploader", "VOD req received", timeout=600, interval=10)
+    found = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/unifieduploader", "VOD req received",start_timestamp, timeout=600, interval=10)
     assert found is not None, "VOD req received log entry found within timeout period."
 
     cmd = r"grep -oP '(?<=Copied )\d+(?=bytes)' /home/ubuntu/.nddevice/log/unifieduploader/* | sed 's/.*://' | sort -n | uniq | head -1"
@@ -323,7 +324,7 @@ def test_size_of_inward_mp4_file_after_alert_is_with_14MB_and_15MB_itn2631(pod_c
 #     result = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/latest/logs", "SomeFakeLogEntryXYZ", timeout=5)
 #     assert result is None, " Unexpectedly found a fake log entry!"
 
-def test_ota_md5um_and_check_no_legacy_package_exists_itn2430(pod_connection):
+def test_ota_md5sum_and_check_no_legacy_package_exists_itn2430(pod_connection):
     """Verify OTA package MD5 sum (dynamically detected) and ensure no legacy OTA packages exist."""
     ota_base = get_ota_version(pod_connection)
     assert ota_base, "OTA version not detected dynamically"
