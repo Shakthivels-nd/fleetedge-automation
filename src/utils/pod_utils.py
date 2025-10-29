@@ -538,7 +538,7 @@ def event_based_api_call(pod_connection, api_pattern, service_name, cloud_check=
     else:
         search_term = api_pattern
     log_dir = f"/home/ubuntu/.nddevice/log/{service_name}"
-    grep_cmd = f"grep -riwa '{search_term}' {log_dir} 2>/dev/null | sort | tail -1"
+    grep_cmd = f"grep -riwa '{search_term}' {log_dir} | sort | tail -1"
     line = run_command_on_pod(pod_connection, grep_cmd)
     if not line:
         details.append(f"Pattern '{search_term}' not found in {log_dir}")

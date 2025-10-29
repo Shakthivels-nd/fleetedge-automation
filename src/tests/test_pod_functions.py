@@ -281,7 +281,7 @@ def test_size_of_inward_mp4_file_before_alert_is_8bytes_itn2629(pod_connection):
 
 def test_size_of_outward_mp4_file_after_alert_is_greter_than_44MB_itn2630(pod_connection):
     """Check size of outward mp4 files after generating user alert."""
-    start_timestamp = int(time.time())
+    start_timestamp = int(time.time())*1000
     generated = run_command_on_pod(pod_connection, "./gen_ualert.sh", "/home/ubuntu/.nddevice/latest/service/bagheera")
     assert generated is not None, "User alert generation command executed."
 
@@ -301,7 +301,7 @@ def test_size_of_outward_mp4_file_after_alert_is_greter_than_44MB_itn2630(pod_co
 
 def test_size_of_inward_mp4_file_after_alert_is_with_14MB_and_15MB_itn2631(pod_connection):
     """Check size of inward mp4 files after generating user alert."""
-    start_timestamp = int(time.time())
+    start_timestamp = int(time.time())*1000 
     generated = run_command_on_pod(pod_connection, "./gen_ualert.sh", "/home/ubuntu/.nddevice/latest/service/bagheera")
     assert generated is not None, "User alert generation command executed."
 
@@ -490,6 +490,75 @@ def test_partial_files_uploaded_to_cloud_itn2617(pod_connection):
     assert not missing, f"Files missing in /media/SdCard after bagheera restart: {missing}"
     print(f"All {len(candidate_files)} mp4 files are present in /media/SdCard after restart.")
 
+def test_api_call_upload_device_status_itn2642(pod_connection):
+    """Verify the device status api call is happening to the cloud or not for every 10mins"""
+    markers = check_private_key_markers(pod_connection)
+    assert all(markers.values()), f"One or more key files missing PRIVATE marker: {markers}"
+    info = get_device_info(pod_connection)
+    assert info['status'] == 'Pass', f"Failed to retrieve device info: {info['details']}"
+    device_id = info['device_id']
+    device_type = info['device_type']
+    assert device_id, f"device_id not found. Details: {info['details']}"
+    assert device_type, f"device_type not found. Details: {info['details']}"
+    print(f"Device ID: {device_id}, Device Type: {device_type}")
+    api_pattern = f"/api/v1/devices/{device_id}/{device_type}/status"
+    result = frequency_based_calls(
+        pod_connection,
+        api_pattern=api_pattern,
+        service_name='health',
+        expected_interval_minutes=10,
+        api_key="uploadDeviceStatusData",
+    )
+    assert result['occurrences'], f"No occurrences found for device status API call. Details: {result['details']}"
+    if len(result['occurrences']) >= 2:
+        assert result['status'] == 'Pass', f"Interval check failed. Details: {result['details']}"
+    print(f"Device status API monitoring details:\n" + "\n".join(result['details']))
+    time.sleep(180)
+    print("Waiting for 180 seconds")
+    cmd1=run_command_on_pod(pod_connection,'''grep -inr "Entering:::uploadHealthLogs:" /home/ubuntu/.nddevice/log/health | awk -F' - ' '{print $1}' | awk '{print $NF}' | tail -1 ''',"/home/ubuntu/.nddevice/log/health")
+    assert cmd1 is not None, "uploadHealthLogs log entry found successfully."
+    print("uploadHealthLogs log entry found successfully.")
+    cmd2 = run_command_on_pod(pod_connection,'''grep -inr "Upload of Health Stats successful" /home/ubuntu/.nddevice/log/health | awk -F' - ' '{print $1}' | awk '{print $NF}' | tail -1 ''',"/home/ubuntu/.nddevice/log/health")
+    assert cmd2 is not None, "Upload of Health Stats successful log entry found successfully."
+    print("Upload of Health Stats successful log entry found successfully.")
+    cmd3 = run_command_on_pod(pod_connection,'''grep -inr "File uploaded, deleting from disk True" /home/ubuntu/.nddevice/log/health | awk -F' - ' '{print $1}' | awk '{print $NF}' | tail -1 ''',"/home/ubuntu/.nddevice/log/health")
+    assert cmd3 is not None, "File uploaded, deleting from disk True log entry found successfully."
+    print("File uploaded, deleting from disk True log entry found successfully.")    
+
+def test_api_call_upload_keep_alive_itn2639(pod_connection):
+    """Verify keep-alive API call happens every 10 mins to the cloud or not """
+    markers = check_private_key_markers(pod_connection)
+    assert all(markers.values()), f"One or more key files missing PRIVATE marker: {markers}"
+
+    utc_info = get_current_time_utc()
+    assert utc_info['status'] == 'Pass', f"Failed to get UTC time: {utc_info['details']}"
+    current_utc = utc_info['utc_time']
+    print(f"Current UTC time: {current_utc}")
+
+    info = get_device_info(pod_connection)
+    assert info['status'] == 'Pass', f"Failed to retrieve device info: {info['details']}"
+    device_id = info['device_id']; device_type = info['device_type']
+    assert device_id and device_type, f"Missing device metadata: {info['details']}"
+
+    ota_version = get_ota_version(pod_connection)
+    assert ota_version, "OTA Version not found"
+
+    api_substring = f"/api/v1/keep-alive/{device_type}/{device_id}/{ota_version}"
+    utc_result = search_log_interval(
+        pod_connection,
+        service_name='keep_alive_manager',
+        message=api_substring
+    )
+    assert utc_result['status'] == 'Pass', f"UTC log interval search failed: {utc_result['details']}"
+    intervals = utc_result['intervals_ms']
+    assert intervals, f"No intervals computed: {utc_result['details']}"
+    last_ms = intervals[-1]
+    range_check = validate_size_range(540000, last_ms, 660000)
+    assert range_check['status'] == 'Pass', (
+        f"Last keep-alive UTC interval {last_ms} ms out of ~10m range. {range_check['details']} | Details: {utc_result['details']}"
+    )
+    print(f"Keep-alive UTC interval OK: {last_ms/60000:.2f} minutes (~10m).")
+
 def test_api_call_version_check_itn2633(pod_connection):
     """Verify version check API call happens every 10 minutes"""
     markers = check_private_key_markers(pod_connection)
@@ -513,6 +582,21 @@ def test_api_call_version_check_itn2633(pod_connection):
         assert result['status'] == 'Pass', f"Interval check failed. Details: {result['details']}"
     print(f"Version check API monitoring details:\n" + "\n".join(result['details']))
 
+def test_api_call_upload_observation_itn2638(pod_connection):
+    """Verify upload observation API call happens every 10 minutes to the cloud or not"""
+    markers = check_private_key_markers(pod_connection)
+    assert all(markers.values()), f"One or more key files missing PRIVATE marker: {markers}"
+    result = frequency_based_calls(
+        pod_connection,
+        api_pattern = '/api/v1/upload/observations',
+        service_name='unifieduploader',
+        expected_interval_minutes=10,
+        api_key="uploadObservationsData"
+    )
+    assert result['occurrences'], f"No occurrences found for upload observations API call. Details: {result['details']}"
+    if len(result['occurrences']) >= 2:
+        assert result['status'] == 'Pass', f"Interval check failed. Details: {result['details']}"
+    print(f"Upload observations API monitoring details:\n" + "\n".join(result['details']))
 
 def test_api_call_upload_videolist_itn2634(pod_connection):
     """Verify upload videolist API call happens every 5 minutes (last interval within expected range)."""
@@ -625,23 +709,28 @@ def test_api_call_device_register_itn2641(pod_connection):
     assert restart_out is not None, "awsiot service restart command executed."
     print("awsiot service restarted successfully.")
 
-    time.sleep(30)
-    print("Waiting 30s for awsiot to attempt registration...")
+    time.sleep(10)
+    print("Waiting 10s for awsiot to attempt registration...")
+    register_log = run_command_on_pod(pod_connection,"grep -ri 'Device registration done' /home/ubuntu/.nddevice/log/awsiot | awk -F' - ' '{print $1}' | awk '{print $NF}' | head -1","/home/ubuntu/.nddevice/log/awsiot")
+    assert register_log is not None, "Device registration done log entry found successfully after awsiot restart."
+    print("Device registration done log entry found successfully after awsiot restart.")
 
     # Capture latest device registration log
     reg_result = event_based_api_call(
         pod_connection,
-        api_pattern='Device registration done',
-        service_name='awsiot'
+        api_pattern='Connected successfully',
+        service_name='awsiot',
+        api_key="deviceRegisterData"
+
     )
     assert reg_result['status'] == 'Pass' and reg_result['triggered_time_ms'], (
         f"Device registration log not found: {reg_result['details']}"
     )
-    print("Device registration log detected.")
+    print("device-register call triggered.")
     print("Details:\n" + "\n".join(reg_result['details']))
 
     # Allow time for cert recreation
-    wait_secs = 180
+    wait_secs = 270
     print(f"Waiting {wait_secs}s for certificates to be recreated...")
     time.sleep(wait_secs)
 
@@ -656,89 +745,3 @@ def test_api_call_device_register_itn2641(pod_connection):
         print(f"Cert check: {r['file_name']} => {'OK' if r['exists'] else 'MISSING'}")
     assert not missing, f"Missing certificates after re-registration: {missing} | Details: {[r['details'] for r in cert_results]}"
     print("All expected certificates recreated.")
-
-def test_api_call_upload_device_status_itn2642(pod_connection):
-    """Verify the device status api call is happening to the cloud or not for every 10mins"""
-    markers = check_private_key_markers(pod_connection)
-    assert all(markers.values()), f"One or more key files missing PRIVATE marker: {markers}"
-    info = get_device_info(pod_connection)
-    assert info['status'] == 'Pass', f"Failed to retrieve device info: {info['details']}"
-    device_id = info['device_id']
-    device_type = info['device_type']
-    assert device_id, f"device_id not found. Details: {info['details']}"
-    assert device_type, f"device_type not found. Details: {info['details']}"
-    print(f"Device ID: {device_id}, Device Type: {device_type}")
-    api_pattern = f"/api/v1/devices/{device_id}/{device_type}/status"
-    result = frequency_based_calls(
-        pod_connection,
-        api_pattern=api_pattern,
-        service_name='health',
-        expected_interval_minutes=10,
-        api_key="uploadDeviceStatusData",
-    )
-    assert result['occurrences'], f"No occurrences found for device status API call. Details: {result['details']}"
-    if len(result['occurrences']) >= 2:
-        assert result['status'] == 'Pass', f"Interval check failed. Details: {result['details']}"
-    print(f"Device status API monitoring details:\n" + "\n".join(result['details']))
-    time.sleep(180)
-    print("Waiting for 180 seconds")
-    cmd1=run_command_on_pod(pod_connection,'''grep -inr "Entering:::uploadHealthLogs:" /home/ubuntu/.nddevice/log/health | awk -F' - ' '{print $1}' | awk '{print $NF}' | tail -1 ''',"/home/ubuntu/.nddevice/log/health")
-    assert cmd1 is not None, "uploadHealthLogs log entry found successfully."
-    print("uploadHealthLogs log entry found successfully.")
-    cmd2 = run_command_on_pod(pod_connection,'''grep -inr "Upload of Health Stats successful" /home/ubuntu/.nddevice/log/health | awk -F' - ' '{print $1}' | awk '{print $NF}' | tail -1 ''',"/home/ubuntu/.nddevice/log/health")
-    assert cmd2 is not None, "Upload of Health Stats successful log entry found successfully."
-    print("Upload of Health Stats successful log entry found successfully.")
-    cmd3 = run_command_on_pod(pod_connection,'''grep -inr "File uploaded, deleting from disk True" /home/ubuntu/.nddevice/log/health | awk -F' - ' '{print $1}' | awk '{print $NF}' | tail -1 ''',"/home/ubuntu/.nddevice/log/health")
-    assert cmd3 is not None, "File uploaded, deleting from disk True log entry found successfully."
-    print("File uploaded, deleting from disk True log entry found successfully.")
-
-
-def test_api_call_upload_keep_alive_itn2639(pod_connection):
-    """Verify keep-alive API call happens every 10 mins to the cloud or not """
-    markers = check_private_key_markers(pod_connection)
-    assert all(markers.values()), f"One or more key files missing PRIVATE marker: {markers}"
-
-    utc_info = get_current_time_utc()
-    assert utc_info['status'] == 'Pass', f"Failed to get UTC time: {utc_info['details']}"
-    current_utc = utc_info['utc_time']
-    print(f"Current UTC time: {current_utc}")
-
-    info = get_device_info(pod_connection)
-    assert info['status'] == 'Pass', f"Failed to retrieve device info: {info['details']}"
-    device_id = info['device_id']; device_type = info['device_type']
-    assert device_id and device_type, f"Missing device metadata: {info['details']}"
-
-    ota_version = get_ota_version(pod_connection)
-    assert ota_version, "OTA Version not found"
-
-    api_substring = f"/api/v1/keep-alive/{device_type}/{device_id}/{ota_version}"
-    utc_result = search_log_interval(
-        pod_connection,
-        service_name='keep_alive_manager',
-        message=api_substring
-    )
-    assert utc_result['status'] == 'Pass', f"UTC log interval search failed: {utc_result['details']}"
-    intervals = utc_result['intervals_ms']
-    assert intervals, f"No intervals computed: {utc_result['details']}"
-    last_ms = intervals[-1]
-    range_check = validate_size_range(540000, last_ms, 660000)
-    assert range_check['status'] == 'Pass', (
-        f"Last keep-alive UTC interval {last_ms} ms out of ~10m range. {range_check['details']} | Details: {utc_result['details']}"
-    )
-    print(f"Keep-alive UTC interval OK: {last_ms/60000:.2f} minutes (~10m).")
-
-def test_api_call_upload_observation_itn2638(pod_connection):
-    """Verify upload observation API call happens every 10 minutes to the cloud or not"""
-    markers = check_private_key_markers(pod_connection)
-    assert all(markers.values()), f"One or more key files missing PRIVATE marker: {markers}"
-    result = frequency_based_calls(
-        pod_connection,
-        api_pattern = '/api/v1/upload/observations',
-        service_name='unifieduploader',
-        expected_interval_minutes=10,
-        api_key="uploadObservationsData"
-    )
-    assert result['occurrences'], f"No occurrences found for upload observations API call. Details: {result['details']}"
-    if len(result['occurrences']) >= 2:
-        assert result['status'] == 'Pass', f"Interval check failed. Details: {result['details']}"
-    print(f"Upload observations API monitoring details:\n" + "\n".join(result['details']))
