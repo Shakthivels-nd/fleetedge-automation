@@ -692,7 +692,7 @@ def test_api_call_device_register_itn2641(pod_connection):
     # Verify they are gone instead of asserting on command output
     removed_paths = [
         "/home/ubuntu/.nddevice/certificate/certificate.pem.crt",
-        "/home/ubuntu/.nddevice/.nddevice/certificate/ed25519key.pem" if False else "/home/ubuntu/.nddevice/certificate/ed25519key.pem",  # keep path correct
+        "/home/ubuntu/.nddevice/.nddevice/certificate/ed25519key.pem"
         "/home/ubuntu/.nddevice/certificate/private.pem.key",
         "/home/ubuntu/.nddevice/certificate/pub-ed25519.pem",
     ]
