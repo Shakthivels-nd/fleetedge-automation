@@ -16,7 +16,18 @@ from src.utils.pod_utils import (
     list_log_folder_contents,
     validate_services_uptime_diff,
     reboot_voyager,
-    run_command_on_voyager
+    run_command_on_voyager,
+    frequency_based_calls,
+    check_private_key_markers,
+    get_ota_version,
+    validate_size_range,
+    search_log_interval,
+    get_current_time_utc,
+    event_based_api_call,
+    check_file_availability,
+    get_device_info,
+    compare_time_difference_hms,
+    get_current_time_epoch
 )
 """
 To run tests and generate HTML report, use the following command:
@@ -48,7 +59,7 @@ def pod_connection():
 
 
 def test_connection_success_itn2426(pod_connection):
-    """Test: Verify pod connection was established successfully."""
+    """Verify pod connection was established successfully."""
     assert pod_connection.isalive(), "Pod connection failed — child process not active."
 
 def test_data_disk_usage_itn2427(pod_connection):
@@ -158,7 +169,32 @@ def test_ini_fields_present_itn2446(pod_connection):
                 value = config.get(section, field)
                 assert value, f"Field '{field}' in section '{section}' of {filename} is empty"
                 print(f"Field '{field}' in section '{section}' of {filename} has value: {value}")
- 
+    print("Check the presence of bagheera_override.ini inside the pod and also ensure the file size >0KB")
+    override_ini = run_command_on_pod(pod_connection, "ls -lh /home/ubuntu/config/bagheera_override.ini", "/home/ubuntu/config")
+    assert override_ini, "bagheera_override.ini listing returned empty output"
+    line = override_ini.strip().splitlines()[0]
+    parts = line.split()
+    assert len(parts) >= 9, f"Unexpected ls -lh output format: {line}"
+    size_token = parts[4]  # e.g. 16K, 2M, 1048576
+    # Parse size token
+    unit = size_token[-1].upper() if not size_token[-1].isdigit() else ''
+    number_part = size_token[:-1] if unit and not number_part.isdigit() else size_token.rstrip()
+    # Safe numeric extraction
+    num_match = re.match(r"(\d+(?:\.\d+)?)", size_token)
+    assert num_match, f"Could not parse size from token '{size_token}'"
+    size_val = float(num_match.group(1))
+    if unit == 'G':
+        size_kb = size_val * 1024 * 1024
+    elif unit == 'M':
+        size_kb = size_val * 1024
+    elif unit == 'K':
+        size_kb = size_val
+    else:
+        # bytes -> KB
+        size_kb = size_val / 1024.0
+    assert size_kb > 0, f"bagheera_override.ini size not greater than 0KB (parsed {size_kb}KB from '{size_token}')"
+    print(f"bagheera_override.ini present with size {size_token} (>0KB confirmed)")
+
 def test_gen_useralert_and_video_upload_itn2432(pod_connection):
     """Verify triggering a user alert and verify the respective logs."""
     start_timestamp = int(time.time()) * 1000 
@@ -245,11 +281,11 @@ def test_size_of_inward_mp4_file_before_alert_is_8bytes_itn2629(pod_connection):
 
 def test_size_of_outward_mp4_file_after_alert_is_greter_than_44MB_itn2630(pod_connection):
     """Check size of outward mp4 files after generating user alert."""
-    start_timestamp = int(time.time())
+    start_timestamp = int(time.time())*1000
     generated = run_command_on_pod(pod_connection, "./gen_ualert.sh", "/home/ubuntu/.nddevice/latest/service/bagheera")
     assert generated is not None, "User alert generation command executed."
 
-    found = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/unifieduploader", "VOD req received", timeout=600, interval=10)
+    found = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/unifieduploader", "VOD req received",start_timestamp, timeout=600, interval=10)
     assert found is not None, "VOD req received log entry found within timeout period."
 
     cmd = r"grep -oP '(?<=Copied )\d+(?=bytes)' /home/ubuntu/.nddevice/log/unifieduploader/* | sed 's/.*://' | sort -n | uniq | tail -1"
@@ -265,10 +301,11 @@ def test_size_of_outward_mp4_file_after_alert_is_greter_than_44MB_itn2630(pod_co
 
 def test_size_of_inward_mp4_file_after_alert_is_with_14MB_and_15MB_itn2631(pod_connection):
     """Check size of inward mp4 files after generating user alert."""
+    start_timestamp = int(time.time())*1000 
     generated = run_command_on_pod(pod_connection, "./gen_ualert.sh", "/home/ubuntu/.nddevice/latest/service/bagheera")
     assert generated is not None, "User alert generation command executed."
 
-    found = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/unifieduploader", "VOD req received", timeout=600, interval=10)
+    found = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/unifieduploader", "VOD req received",start_timestamp, timeout=600, interval=10)
     assert found is not None, "VOD req received log entry found within timeout period."
 
     cmd = r"grep -oP '(?<=Copied )\d+(?=bytes)' /home/ubuntu/.nddevice/log/unifieduploader/* | sed 's/.*://' | sort -n | uniq | head -1"
@@ -287,27 +324,29 @@ def test_size_of_inward_mp4_file_after_alert_is_with_14MB_and_15MB_itn2631(pod_c
 #     result = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/latest/logs", "SomeFakeLogEntryXYZ", timeout=5)
 #     assert result is None, " Unexpectedly found a fake log entry!"
 
-def test_ota_md5sum_itn2430(pod_connection):
-    """Verify OTA package MD5 sum."""
-    ota_version = "6.5.39.rc.1.tar.gz"
-    result = check_ota_md5sum(pod_connection, ota_version)
-    print("MD5 result:", result)
-    assert len(result) == 32
+def test_ota_md5sum_and_check_no_legacy_package_exists_itn2430(pod_connection):
+    """Verify OTA package MD5 sum (dynamically detected) and ensure no legacy OTA packages exist."""
+    ota_base = get_ota_version(pod_connection)
+    assert ota_base, "OTA version not detected dynamically"
+    ota_filename = ota_base if ota_base.endswith('.tar.gz') else ota_base + '.tar.gz'
+    print(f"Detected OTA filename: {ota_filename}")
 
-def test_only_ota_present(pod_connection):
-    """Verify that  no legacy package exists when a particular OTA package is present."""
-    ota_version = "6.5.39.rc.1.tar.gz"
-    check_no_legacy_package_exists(pod_connection, ota_version)
+    md5_hash = check_ota_md5sum(pod_connection, ota_filename)
+    print("MD5 result:", md5_hash)
+    assert isinstance(md5_hash, str) and len(md5_hash) == 32, f"Invalid MD5 hash length: {md5_hash}"
 
-def test_list_log_folder_contents(pod_connection):
+    check_no_legacy_package_exists(pod_connection, ota_filename)
+    print("No legacy OTA packages present besides the current one.")
+
+def test_list_log_folder_contents_itn2459(pod_connection):
     """Verify the contents of log folder."""
     list_log_folder_contents(pod_connection)
 
-def test_service_uptime(pod_connection):
+def test_service_uptime_itn2470(pod_connection):
     """Validate that service uptimes are within expected range."""
     validate_services_uptime_diff(pod_connection, max_diff_seconds=5)
 
-def test_video_encryption_config(pod_connection):
+def test_video_encryption_config_itn2468(pod_connection):
     """Verify if video_encryption config is set to false
     """
     print('This test is to verify video_encryption config log entry after restarting bagheera service.')
@@ -324,7 +363,7 @@ def test_video_encryption_config(pod_connection):
     assert log_found is not None, "video_encryption log entry not found within timeout period"
     print("video_encryption log entry found successfully.")
 
-def test_summary_json_files_generated(pod_connection):
+def test_summary_json_files_generated_itn2457(pod_connection):
     """
     Check if summary.json file is generated in /data/nd_files/log/unifieduploader
     """
@@ -338,7 +377,7 @@ def test_summary_json_files_generated(pod_connection):
     assert json_found is not None, "summary.json file not found within timeout period."
     print("summary.json file found successfully.")
 
-def test_gps_mp4_filename(pod_connection):
+def test_gps_mp4_file_metadata_itn2454(pod_connection):
     """This test extracts GPS metadata from the latest .mp4 filename in /home/iriscli/files"""
     print('This test extracts GPS metadata from the latest .mp4 filename in /home/iriscli/files.')
     target_dir = "/home/iriscli/files"
@@ -383,7 +422,7 @@ def test_gps_mp4_filename(pod_connection):
     else:
         print("No real GPS data (device static).")
 
-def test_mp4_files_present(pod_connection):
+def test_mp4_files_present_itn2428(pod_connection):
     """Check if files starting with 0_trip or 1_trip and ending with .mp4 or .zip exist."""
     directories = [
         "/home/iriscli/files",
@@ -400,7 +439,7 @@ def test_mp4_files_present(pod_connection):
         assert count > 0, f"No files matching '{pattern}' found in {directory}"
         print(f"Found {count} files matching '{pattern}' in {directory}")
     
-def test_partial_files_uploaded_to_cloud(pod_connection):
+def test_partial_files_uploaded_to_cloud_itn2617(pod_connection):
     """Verify if the partial files are uploaded to cloud 
     """
     # Step 1: Latest timestamp from logs 
@@ -432,7 +471,8 @@ def test_partial_files_uploaded_to_cloud(pod_connection):
 
     # Prepare regex patterns for exact filename matches
     patterns = [r'^' + re.escape(f) + r'$' for f in candidate_files]
-
+    time.sleep(30)
+    print("Wait for 30 seconds before restaring bagheera service")
     # Step 3: Restart bagheera service 
     restart_out = run_command_on_pod(pod_connection, "supervisorctl restart bagheera", "/home/ubuntu/.nddevice/latest/service")
     assert restart_out is not None, "Bagheera restart command produced no output"
@@ -440,12 +480,268 @@ def test_partial_files_uploaded_to_cloud(pod_connection):
     assert "RUNNING" in status_out, f"bagheera not running after restart. Status: {status_out}"
     print("bagheera service restarted and RUNNING.")
 
-    time.sleep(125)  # wait for file upload completion
+    time.sleep(95)  # wait for file upload completion
 
     # Step 4: Verify each recorded file now exists in /media/SdCard
     results = verify_file_presence(pod_connection, ["/media/SdCard"], patterns)
     missing = [candidate_files[i] for i, r in enumerate(results) if r["count"] == 0]
     for r in results:
-        print(f"[Step4] Pattern {r['pattern']} count in /media/SdCard: {r['count']}")
+        print(f"Pattern {r['pattern']} count in /media/SdCard: {r['count']}")
     assert not missing, f"Files missing in /media/SdCard after bagheera restart: {missing}"
     print(f"All {len(candidate_files)} mp4 files are present in /media/SdCard after restart.")
+
+def test_api_call_upload_device_status_itn2642(pod_connection):
+    """Verify the device status api call is happening to the cloud or not for every 10mins"""
+    markers = check_private_key_markers(pod_connection)
+    assert all(markers.values()), f"One or more key files missing PRIVATE marker: {markers}"
+    info = get_device_info(pod_connection)
+    assert info['status'] == 'Pass', f"Failed to retrieve device info: {info['details']}"
+    device_id = info['device_id']
+    device_type = info['device_type']
+    assert device_id, f"device_id not found. Details: {info['details']}"
+    assert device_type, f"device_type not found. Details: {info['details']}"
+    print(f"Device ID: {device_id}, Device Type: {device_type}")
+    api_pattern = f"/api/v1/devices/{device_id}/{device_type}/status"
+    result = frequency_based_calls(
+        pod_connection,
+        api_pattern=api_pattern,
+        service_name='health',
+        expected_interval_minutes=10,
+        api_key="uploadDeviceStatusData",
+    )
+    assert result['occurrences'], f"No occurrences found for device status API call. Details: {result['details']}"
+    if len(result['occurrences']) >= 2:
+        assert result['status'] == 'Pass', f"Interval check failed. Details: {result['details']}"
+    print(f"Device status API monitoring details:\n" + "\n".join(result['details']))
+    time.sleep(180)
+    print("Waiting for 180 seconds")
+    cmd1=run_command_on_pod(pod_connection,'''grep -inr "Entering:::uploadHealthLogs:" /home/ubuntu/.nddevice/log/health | awk -F' - ' '{print $1}' | awk '{print $NF}' | tail -1 ''',"/home/ubuntu/.nddevice/log/health")
+    assert cmd1 is not None, "uploadHealthLogs log entry found successfully."
+    print("uploadHealthLogs log entry found successfully.")
+    cmd2 = run_command_on_pod(pod_connection,'''grep -inr "Upload of Health Stats successful" /home/ubuntu/.nddevice/log/health | awk -F' - ' '{print $1}' | awk '{print $NF}' | tail -1 ''',"/home/ubuntu/.nddevice/log/health")
+    assert cmd2 is not None, "Upload of Health Stats successful log entry found successfully."
+    print("Upload of Health Stats successful log entry found successfully.")
+    cmd3 = run_command_on_pod(pod_connection,'''grep -inr "File uploaded, deleting from disk True" /home/ubuntu/.nddevice/log/health | awk -F' - ' '{print $1}' | awk '{print $NF}' | tail -1 ''',"/home/ubuntu/.nddevice/log/health")
+    assert cmd3 is not None, "File uploaded, deleting from disk True log entry found successfully."
+    print("File uploaded, deleting from disk True log entry found successfully.")    
+
+def test_api_call_upload_keep_alive_itn2639(pod_connection):
+    """Verify keep-alive API call happens every 10 mins to the cloud or not """
+    markers = check_private_key_markers(pod_connection)
+    assert all(markers.values()), f"One or more key files missing PRIVATE marker: {markers}"
+
+    utc_info = get_current_time_utc()
+    assert utc_info['status'] == 'Pass', f"Failed to get UTC time: {utc_info['details']}"
+    current_utc = utc_info['utc_time']
+    print(f"Current UTC time: {current_utc}")
+
+    info = get_device_info(pod_connection)
+    assert info['status'] == 'Pass', f"Failed to retrieve device info: {info['details']}"
+    device_id = info['device_id']; device_type = info['device_type']
+    assert device_id and device_type, f"Missing device metadata: {info['details']}"
+
+    ota_version = get_ota_version(pod_connection)
+    assert ota_version, "OTA Version not found"
+
+    api_substring = f"/api/v1/keep-alive/{device_type}/{device_id}/{ota_version}"
+    utc_result = search_log_interval(
+        pod_connection,
+        service_name='keep_alive_manager',
+        message=api_substring
+    )
+    assert utc_result['status'] == 'Pass', f"UTC log interval search failed: {utc_result['details']}"
+    intervals = utc_result['intervals_ms']
+    assert intervals, f"No intervals computed: {utc_result['details']}"
+    last_ms = intervals[-1]
+    range_check = validate_size_range(540000, last_ms, 660000)
+    assert range_check['status'] == 'Pass', (
+        f"Last keep-alive UTC interval {last_ms} ms out of ~10m range. {range_check['details']} | Details: {utc_result['details']}"
+    )
+    print(f"Keep-alive UTC interval OK: {last_ms/60000:.2f} minutes (~10m).")
+
+def test_api_call_version_check_itn2633(pod_connection):
+    """Verify version check API call happens every 10 minutes"""
+    markers = check_private_key_markers(pod_connection)
+    assert all(markers.values()), f"One or more key files missing PRIVATE marker: {markers}"
+    ota_version = get_ota_version(pod_connection)
+    assert ota_version, "OTA version not detected"
+    api_pattern = f"/api/v1/versioncheck/{ota_version}" 
+
+    result = frequency_based_calls(
+        pod_connection,
+        api_pattern=api_pattern,
+        service_name='otacheck',
+        expected_interval_minutes=10,
+        cloud_check=False,
+        api_key="versionCheckData"
+    )
+
+    # Require at least one occurrence; if two, status should be Pass within tolerance
+    assert result['occurrences'], f"No occurrences found for pattern {api_pattern}. Details: {result['details']}"
+    if len(result['occurrences']) >= 2:
+        assert result['status'] == 'Pass', f"Interval check failed. Details: {result['details']}"
+    print(f"Version check API monitoring details:\n" + "\n".join(result['details']))
+
+def test_api_call_upload_observation_itn2638(pod_connection):
+    """Verify upload observation API call happens every 10 minutes to the cloud or not"""
+    markers = check_private_key_markers(pod_connection)
+    assert all(markers.values()), f"One or more key files missing PRIVATE marker: {markers}"
+    result = frequency_based_calls(
+        pod_connection,
+        api_pattern = '/api/v1/upload/observations',
+        service_name='unifieduploader',
+        expected_interval_minutes=10,
+        api_key="uploadObservationsData"
+    )
+    assert result['occurrences'], f"No occurrences found for upload observations API call. Details: {result['details']}"
+    if len(result['occurrences']) >= 2:
+        assert result['status'] == 'Pass', f"Interval check failed. Details: {result['details']}"
+    print(f"Upload observations API monitoring details:\n" + "\n".join(result['details']))
+
+def test_api_call_upload_videolist_itn2634(pod_connection):
+    """Verify upload videolist API call happens every 5 minutes (last interval within expected range)."""
+    markers = check_private_key_markers(pod_connection)
+    assert all(markers.values()), f"One or more key files missing PRIVATE marker: {markers}"
+    time.sleep(700)  # allow multiple log entries to accumulate ( >2 cycles of 5m )
+    result = search_log_interval(
+        pod_connection,
+        service_name='circ_buff',
+        message="https://idms-staging.netradyne.com/restserver/api/v1/upload/videolist"
+    )
+    assert result['status'] == 'Pass', f"Log search failed: {result['details']}"
+    intervals = result['intervals_ms']
+    assert intervals, f"No intervals computed: {result['details']}"
+    last_ms = intervals[-1]
+    size_range = validate_size_range(
+        min_size=270000,
+        size=last_ms,
+        max_size=360000
+    )
+    assert size_range['status'] == 'Pass', f"Last interval {last_ms} ms not within expected 5m range: {size_range['details']} | Details: {result['details']}"
+    print(f"Upload videolist API interval {last_ms/60000:.2f}m within 5m expected range.")
+
+def test_api_call_upload_logs_itn2640(pod_connection):
+    """Verify upload logs API call happens every 10 mins"""
+    utc_info = get_current_time_utc()
+    assert utc_info['status'] == 'Pass', f"Failed to get UTC time: {utc_info['details']}"
+    utc_str = utc_info['utc_time']
+    print(f"Current UTC time: {utc_str}")
+    markers = check_private_key_markers(pod_connection)
+    assert all(markers.values()), f"One or more key files missing PRIVATE marker: {markers}"
+    result = frequency_based_calls(
+        pod_connection,
+        api_pattern = '/api/v1/upload/logs',
+        service_name='unifieduploader',   
+        expected_interval_minutes=10,
+        api_key="uploadLogsData"
+    )
+    assert result['occurrences'], f"No occurrences found for upload logs API call. Details: {result['details']}"
+    if len(result['occurrences']) >= 2:
+        assert result['status'] == 'Pass', f"Interval check failed. Details: {result['details']}"
+    print(f"Upload logs API monitoring details:\n" + "\n".join(result['details']))
+    # Write keepalive_count.txt and verify its contents
+    run_command_on_pod(pod_connection,'bash -c "echo 10 > /home/ubuntu/.nddevice/log/keepalive_count.txt"','/home/ubuntu/.nddevice/log')
+    written_value = run_command_on_pod(pod_connection,'cat keepalive_count.txt','/home/ubuntu/.nddevice/log')
+    written_value = (written_value or '').strip()
+    print(f"keepalive_count.txt content after write: {written_value}")
+    assert written_value == '10', f"keepalive_count.txt expected '10' got '{written_value}'"
+
+    log = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/keep_alive_manager","keep_alive_manager - INFO - Zipping critical logs",utc_str,timeout=120, interval=10)
+    assert log is not None, "Expected keep_alive_manager log entry not found after setting keepalive_count.txt"
+    print("keep_alive_manager - INFO - Zipping critical logs found successfully.")
+
+    log2 = search_logs_in_pod(pod_connection,"/home/ubuntu/.nddevice/log/keep_alive_manager","Done zipping logs",utc_str, timeout=120, interval=10)
+    assert log2 is not None, "Expected Done zipping logs entry not found after setting keepalive_count.txt"
+    print("Done zipping logs found successfully.")
+
+    log3 = search_logs_in_pod(pod_connection,"/home/ubuntu/.nddevice/log/keep_alive_manager","Critical log upload message sent to uploader",utc_str,timeout=120, interval=10)
+    assert log3 is not None, "Expected Critical log upload message not found after setting keepalive_count.txt"
+    print("Critical log upload message sent to uploader found successfully.")
+
+    log4 = search_logs_in_pod(pod_connection,"/home/ubuntu/.nddevice/log/unifieduploader","Uploading logs...",utc_str, timeout=120, interval=10)
+    assert log4 is not None, "Expected Uploading logs... message not found after setting keepalive_count.txt"
+    print("Uploading logs... message found successfully.")
+
+    log5 = search_logs_in_pod(pod_connection,"/home/ubuntu/.nddevice/log/unifieduploader","Calling service: https://idms-staging.netradyne.com/restserver/api/v1/upload/logs",utc_str, timeout=120, interval=10)
+    assert log5 is not None, "Expected Calling service log entry not found after setting keepalive_count.txt"
+    print("Calling service log entry found successfully.")
+
+    cmd = run_command_on_pod(pod_connection,'''grep -Hn '{"response":true,"msg":"Device-Logs saved!!"}' $(ls -t /home/ubuntu/.nddevice/log/unifieduploader/*.log) 2>/dev/null | tail -n 1''',"/home/ubuntu/.nddevice/log/unifieduploader")
+    assert cmd is not None, "Expected Device-Logs saved!! log entry not found after setting keepalive_count.txt"
+    print("Device-Logs saved!! log entry found successfully.")
+
+def test_api_call_device_register_itn2641(pod_connection):
+    """Verify the device register call triggers when certificates are removed and they are recreated."""
+    # Correct UTC retrieval (helper takes no arguments)
+    utc_info = get_current_time_utc()
+    assert utc_info['status'] == 'Pass', f"Failed to get UTC time: {utc_info['details']}"
+    utc_str = utc_info['utc_time']
+    print(f"Current UTC time: {utc_str}")
+
+    device_date = run_command_on_pod(pod_connection, "date +'%Y-%m-%d'").strip()
+    print(f"Device date: {device_date}")
+    if device_date in utc_str:
+        print("Device date is in sync with UTC date.")
+    else:
+        print("Device date is NOT in sync with UTC date.")
+
+    # Remove certificates to force re-registration (brace expansion acceptable)
+    remove_cmd = ("rm -f /home/ubuntu/.nddevice/certificate/{certificate.pem.crt,ed25519key.pem,private.pem.key,pub-ed25519.pem}")
+    run_command_on_pod(pod_connection, remove_cmd, "/home/ubuntu/.nddevice/certificate")
+
+    # Verify they are gone instead of asserting on command output
+    removed_paths = [
+        "/home/ubuntu/.nddevice/certificate/certificate.pem.crt",
+        "/home/ubuntu/.nddevice/.nddevice/certificate/ed25519key.pem"
+        "/home/ubuntu/.nddevice/certificate/private.pem.key",
+        "/home/ubuntu/.nddevice/certificate/pub-ed25519.pem",
+    ]
+    still_present = []
+    for p in removed_paths:
+        chk = check_file_availability(pod_connection, p)
+        print(f"Post-removal check: {p} => {'EXISTS' if chk['exists'] else 'REMOVED'}")
+        if chk['exists']:
+            still_present.append(p)
+    assert not still_present, f"Some certificates not removed: {still_present}"
+    print("Certificates removed successfully.")
+
+    restart_out = run_command_on_pod(pod_connection, "supervisorctl restart awsiot", "/home/ubuntu/.nddevice/latest/service")
+    assert restart_out is not None, "awsiot service restart command executed."
+    print("awsiot service restarted successfully.")
+
+    time.sleep(10)
+    print("Waiting 10s for awsiot to attempt registration...")
+    register_log = run_command_on_pod(pod_connection,"grep -ri 'Device registration done' /home/ubuntu/.nddevice/log/awsiot | awk -F' - ' '{print $1}' | awk '{print $NF}' | head -1","/home/ubuntu/.nddevice/log/awsiot")
+    assert register_log is not None, "Device registration done log entry found successfully after awsiot restart."
+    print("Device registration done log entry found successfully after awsiot restart.")
+
+    # Capture latest device registration log
+    reg_result = event_based_api_call(
+        pod_connection,
+        api_pattern='Connected successfully',
+        service_name='awsiot',
+        api_key="deviceRegisterData"
+
+    )
+    assert reg_result['status'] == 'Pass' and reg_result['triggered_time_ms'], (
+        f"Device registration log not found: {reg_result['details']}"
+    )
+    print("device-register call triggered.")
+    print("Details:\n" + "\n".join(reg_result['details']))
+
+    # Allow time for cert recreation
+    wait_secs = 270
+    print(f"Waiting {wait_secs}s for certificates to be recreated...")
+    time.sleep(wait_secs)
+
+    cert_paths = [
+        "/home/ubuntu/.nddevice/certificate/certificate.pem.crt",
+        "/home/ubuntu/.nddevice/certificate/root-CA.crt",
+        "/home/ubuntu/.nddevice/certificate/private.pem.key",
+    ]
+    cert_results = [check_file_availability(pod_connection, p) for p in cert_paths]
+    missing = [r['file_name'] for r in cert_results if not r['exists']]
+    for r in cert_results:
+        print(f"Cert check: {r['file_name']} => {'OK' if r['exists'] else 'MISSING'}")
+    assert not missing, f"Missing certificates after re-registration: {missing} | Details: {[r['details'] for r in cert_results]}"
+    print("All expected certificates recreated.")
