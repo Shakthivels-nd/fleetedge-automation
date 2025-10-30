@@ -9,8 +9,24 @@ from datetime import datetime
 import calendar
 
 
+from dotenv import load_dotenv
+import json
+import requests
+import psycopg2
+from psycopg2 import OperationalError, ProgrammingError
+
+load_dotenv()
 logger = setup_logger()
 voyager_ip = "172.16.22.119"
+
+DB_CONFIG = {
+    "host": os.getenv("HOST", "host.info"),
+    "dbname": os.getenv("DB_NAME", "database-name"),
+    "user": os.getenv("DB_USER", "username"),
+    "password": os.getenv("DB_PASSWORD", "password"),
+    "port": os.getenv("DB_PORT", 5432)
+}
+
 def connect_to_pod(ip_address: str = voyager_ip, username: str = "voyager", password: str = "voyager", pod: str = "netra"):
     """
     Establish a persistent SSH session into a pod using pexpect.
@@ -1083,17 +1099,164 @@ def compare_time_difference_hms(timestamp1, expected_difference_minutes, timesta
         'details': details
     }
 
+def login_api():
+        attempts = 0
+        while attempts < 5: 
+            try:
+                status = False
+                session_key = ''
+                access_token = ''
+                 # Prepare data and headers for token request
+                token_url = "https://auth-staging.netradyne.com/authserver/api/v1/oauth/token"
+                token_headers = {"Content-Type": "application/x-www-form-urlencoded"}
+                token_data = {
+                    "client_id": "idms",
+                    "grant_type": "password",
+                    "username": "device-test-automation",
+                    "password": "devicetestautomation"
+                }
+                token_response = requests.post(token_url, headers=token_headers, data=token_data)
+                login_response = token_response.json()
+                print(login_response)
+                if 'access_token' in login_response: 
+                    access_token = login_response["access_token"]
+                    session_url = "https://auth-staging.netradyne.com/authserver/api/v1/session"
+                    session_headers = {"Authorization": f"bearer {access_token}"}
+                    session_response1 = requests.post(session_url, headers=session_headers)
+                    session_response = session_response1.json()
+                else:
+                    raise Exception("Access token is not generated")
+                if 'session' in session_response and 'session_id' in session_response['session']:
+                    session_key = session_response['session']['session_id']
+                    if session_key != '':
+                        status=True
+                        return session_key,status,access_token
+                    else:
+                        raise Exception("Session key is empty")
+                else:
+                    raise Exception("Session key is not generated")
+            except Exception as e:
+                attempts += 1
+                print(f"Error in login_api: {e}. Attempt: {attempts}")
+                time.sleep(2 ** attempts)
+
+        return None, False, None # default values after failed attempts
+
+def aws_ping_command(user_id, ping_command):  
+    """
+    This function sends a ping command to the AWS API for a specific device.
+    It logs in to obtain a session key and access token, then constructs and sends
+    the ping request. The function returns the test status and response status.
+    Args:
+        user_id (str): The user ID to include in the ping request.
+        ping_command (str): The ping command to send (e.g., "reboot-phone").
+    Returns:
+        tuple: A tuple containing the test status ("Pass" or "Fail") and a boolean
+               indicating whether the ping command was successful.
+    """
+    test_status = "Pass"  
+    response = ''  
+    response_status = False   
+    try:  
+        session_key, status, access_token = login_api()  
+        if status:  
+            device_id = os.getenv("DEVICE_ID", "00000000000") 
+            url = f"https://idms-staging.netradyne.com/restserver/api/v1/devices/{device_id}/ping"  
+            headers = {  
+                "session-key": session_key,  
+                "Content-Type": "application/json",  
+                "Authorization": f"Bearer {access_token}"  
+            }  
+            data = {  
+                "deviceId": device_id,  
+                "userId": user_id,  
+                "commands": [ping_command]  
+            }  
+            response = requests.post(url, headers=headers, data=json.dumps(data))
+            response_content = response.json()
+            data = response_content.get("data")
+            if response.status_code == 200 and data and data.get("status") == 0:
+                response_status = True  
+            else:  
+                raise Exception(f"Ping {ping_command} api call response is not received")  
+        else:  
+            raise Exception("session key is not generated")  
+    except Exception as e:  
+        print(f"Error in aws ping api: {e}")  
+        test_status = "Fail"  
+    finally:  
+        return test_status, response_status
+    
+def run_postgresql_query(query: str, params: tuple = ()):
+    """
+    Run a PostgreSQL query using the DB_CONFIG settings.
+    Returns fetched rows for SELECT queries, or None otherwise.
+    """
+    try:
+        print("Connecting to the database...")
+        with psycopg2.connect(**DB_CONFIG) as conn:
+            conn.autocommit = True  # avoids 'transaction already closed' issues
+            with conn.cursor() as cur:
+                # Optional: use sql module to safely format query (if needed)
+                # cur.execute("SET statement_timeout = 30000") 
+                cur.execute(query, params or ())
+                print("Query executed successfully.")
+                
+                if query.strip().lower().startswith("select"):
+                    try:
+                        rows = cur.fetchall()
+                        return rows
+                    except psycopg2.ProgrammingError:
+                        # In case no result set is returned
+                        return []
+                else:
+                    return None
+
+    except (OperationalError, ProgrammingError) as e:
+        logger.error(f"Database operational error: {e}")
+        print(f"Database operational error: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"Database query failed: {e}", exc_info=True)
+        print(f"Database query failed: {e}")
+        return None
+
+def wait_for_postgresql_result(query: str, params: tuple = (), timeout: int = 300, interval: int = 10):
+    """
+    Repeatedly executes a PostgreSQL query until it returns non-empty results or the timeout expires.
+
+    Args:
+        query: SQL query string.
+        params: Query parameters as a tuple.
+        timeout: Total wait time in seconds before failing.
+        interval: Delay between retries in seconds.
+
+    Returns:
+        List of fetched rows if found; otherwise raises pytest failure.
+    """
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        rows = run_postgresql_query(query, params)
+        if rows:
+            print(f"Found {len(rows)} record(s) for {params} in database.")
+            return rows
+        print(f"No matching records yet. Retrying in {interval}s...")
+        time.sleep(interval)
+    print(f"Timeout reached. No records found for {params} in database.")
+    return None    
+
 if __name__ == "__main__":
     # Connect to pod
-    child = connect_to_pod("172.16.22.119")
+    # child = connect_to_pod("172.16.22.119")
 
-    #  Run multiple commands
-    run_command_on_pod(child, "./gen_ualert.sh", "/home/ubuntu/.nddevice/latest/service/bagheera")
+    # #  Run multiple commands
+    # run_command_on_pod(child, "./gen_ualert.sh", "/home/ubuntu/.nddevice/latest/service/bagheera")
 
-    # disk usage
-    run_command_on_pod(child, "du -sh /data")
+    # # disk usage
+    # run_command_on_pod(child, "du -sh /data")
 
-    # Close connection
-    close_pod_connection(child)
+    # # Close connection
+    # close_pod_connection(child)
+    aws_ping_command("8430","reboot-phone")
 
 

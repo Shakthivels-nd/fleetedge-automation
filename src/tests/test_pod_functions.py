@@ -27,8 +27,12 @@ from src.utils.pod_utils import (
     check_file_availability,
     get_device_info,
     compare_time_difference_hms,
-    get_current_time_epoch
+    get_current_time_epoch,
+    aws_ping_command,
+    wait_for_postgresql_result
 )
+# /data/iravath_ws/iravath/Airavath/db_login/db_credentials.ini
+
 """
 To run tests and generate HTML report, use the following command:
 # Make sure you have requirements installed: pip install -r requirements.txt
@@ -206,7 +210,7 @@ def test_gen_useralert_and_video_upload_itn2432(pod_connection):
     found_event_upload = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/unifieduploader", "Upload successful for 0_trip", start_timestamp, timeout=600, interval=10)
     assert found_event_upload is not None, "Upload successful log entry not found within timeout period."
 
-    file = found_event_upload.split()[-1].split('0')[1]
+    file = found_event_upload.split()[-1][1:]
     print(f"Upload successful log entry found, file: {file}")
 
     awsiot_req_found = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/awsiot", f"sending REQ_UPLOAD_VOD to uploader for file: /media/SdCard/0{file}", start_timestamp , timeout=600, interval=10)
@@ -745,3 +749,66 @@ def test_api_call_device_register_itn2641(pod_connection):
         print(f"Cert check: {r['file_name']} => {'OK' if r['exists'] else 'MISSING'}")
     assert not missing, f"Missing certificates after re-registration: {missing} | Details: {[r['details'] for r in cert_results]}"
     print("All expected certificates recreated.")
+
+def test_aws_ping_keepalive_command_itn2660(pod_connection):
+    """Test to verify AWS ping keep-alive command logs."""
+    start_timestamp = int(time.time()) * 1000
+    aws_ping_command("8430","keep-alive")
+    print("AWS ping command executed successfully.")
+
+    found_keepalive = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/awsiot", "Received command: keep-alive", start_timestamp, timeout=300, interval=10)
+    print("AWS keep-alive command log entry found successfully.")
+    assert found_keepalive is not None, "AWS keep-alive command log entry not found within timeout period."
+
+def test_aws_ping_reboot_command_itn2661(pod_connection):
+    """Test to verify AWS ping reboot-phone command logs."""
+    start_timestamp = int(time.time()) * 1000
+    aws_ping_command("8430","reboot-phone")
+    print("AWS ping reboot command executed successfully.")
+
+    found_reboot = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/awsiot", "Received command: reboot-phone", start_timestamp, timeout=300, interval=10)
+    print("AWS reboot command log entry found successfully.")
+    assert found_reboot is not None, "AWS reboot command log entry not found within timeout period."
+
+def test_alert_video_in_ndalerts_itn2662(pod_connection):
+    """
+    Verify that a specific alert video filename exists in the public.ndalerts table with status = 1.
+    """
+    start_timestamp = int(time.time()) * 1000 
+    cmd = "./gen_ualert.sh"
+    output = run_command_on_pod(pod_connection, cmd, "/home/ubuntu/.nddevice/latest/service/bagheera")
+    assert "User alert is generated..!!!" in output, "Expected confirmation message not found in output"
+    print("User alert log entry generated successfully.")
+
+    found_event_upload = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/unifieduploader", "Upload successful for 0_trip", start_timestamp, timeout=600, interval=10)
+    assert found_event_upload is not None, "Upload successful log entry not found within timeout period."
+
+    file = found_event_upload.split()[-1][1:]
+    print(f"Upload successful log entry found, file: {file}")
+
+    awsiot_req_found = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/awsiot", f"sending REQ_UPLOAD_VOD to uploader for file: /media/SdCard/0{file}", start_timestamp , timeout=600, interval=10)
+    assert awsiot_req_found is not None, "REQ_UPLOAD_VOD log entry not found within timeout period."
+    print("REQ_UPLOAD_VOD log entry found successfully.")
+
+    outward_video_upload_found = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/unifieduploader", f"Upload successful for video: /media/SdCard/0{file}", start_timestamp, timeout=600, interval=10)
+    assert outward_video_upload_found is not None, "Outward Video upload log entry not found within timeout period."
+    print("Outward Video upload log entry found successfully.")
+    
+
+    filename = f"0{file}"
+    print(f"Verifying in DB for filename: {filename}")
+    query = """
+        SELECT DISTINCT alert_video_filename, alert_video_status
+        FROM public.ndalerts
+        WHERE alert_video_filename = %s
+          AND alert_video_status = 1;
+    """
+    try:
+        rows = wait_for_postgresql_result(query, (filename,), timeout=300, interval=10)
+        
+        
+        assert rows is not None and len(rows) > 0, f"No entry found in public.ndalerts for {filename} with status=1"
+        print(f"Found {len(rows)} record(s) for {filename} in public.ndalerts with status=1")
+
+    except Exception as e:
+        pytest.fail(f"Database query failed: {e}")
