@@ -29,7 +29,8 @@ from src.utils.pod_utils import (
     compare_time_difference_hms,
     get_current_time_epoch,
     aws_ping_command,
-    wait_for_postgresql_result
+    wait_for_postgresql_result,
+    fetch_api_calls_window
 )
 # /data/iravath_ws/iravath/Airavath/db_login/db_credentials.ini
 
@@ -812,3 +813,201 @@ def test_alert_video_in_ndalerts_itn2662(pod_connection):
 
     except Exception as e:
         pytest.fail(f"Database query failed: {e}")
+
+def test_api_call_in_idms_upload_keep_alive_itn2694():
+    """Verify that keep_alive api call is seen every 10 minutes in the idms/db or not"""
+    device_id = '122000000040'
+    msg_id = 1
+    result = fetch_api_calls_window(device_id, minutes_before=30, minutes_after=30, msg_id=msg_id)
+    print("DB query details:\n" + "\n".join(result["details"]))
+    print("Rows:", result["rows"])
+
+    assert result["status"] == "Pass", f"No rows found. Details: {result['details']}"
+    assert result["rows"], f"Empty rows list. Details: {result['details']}"
+    # Basic column validation
+    for r in result["rows"]:
+        assert r["device_id"] == device_id, f"Device mismatch: {r}"
+        assert r["msg_id"] == msg_id, f"msg_id mismatch: {r}"
+        assert r["session_id"], f"Missing session_id: {r}"
+        assert r["timestamp"], f"Missing timestamp: {r}"
+
+    # Timestamp window check
+    from datetime import datetime
+    start_dt = datetime.strptime(result["start_time"], "%Y-%m-%d %H:%M:%S")
+    end_dt = datetime.strptime(result["end_time"], "%Y-%m-%d %H:%M:%S")
+    bad = []
+    for r in result["rows"]:
+        try:
+            ts_dt = datetime.strptime(r["timestamp"], "%Y-%m-%d %H:%M:%S")
+            if not (start_dt <= ts_dt < end_dt):
+                bad.append(r)
+        except Exception:
+            bad.append(r)
+    assert not bad, f"Timestamps outside window: {bad}"
+
+    print(f"Found {result['count']} keep_alive row(s) for device {device_id}, msg_id={msg_id} in expected window.")
+    
+def test_api_call_in_idms_upload_version_check_itn2705():
+    """Verify that version_check api call is seen every 10 minutes in the idms/db or not"""
+    device_id = '122000000040'
+    msg_id = 2
+    result = fetch_api_calls_window(device_id, minutes_before=30, minutes_after=30, msg_id=msg_id)
+    print("DB query details:\n" + "\n".join(result["details"]))
+    print("Rows:", result["rows"])
+
+    assert result["status"] == "Pass", f"No rows found. Details: {result['details']}"
+    assert result["rows"], f"Empty rows list. Details: {result['details']}"
+    # Basic column validation
+    for r in result["rows"]:
+        assert r["device_id"] == device_id, f"Device mismatch: {r}"
+        assert r["msg_id"] == msg_id, f"msg_id mismatch: {r}"
+        assert r["session_id"], f"Missing session_id: {r}"
+        assert r["timestamp"], f"Missing timestamp: {r}"
+
+    # Timestamp window check
+    from datetime import datetime
+    start_dt = datetime.strptime(result["start_time"], "%Y-%m-%d %H:%M:%S")
+    end_dt = datetime.strptime(result["end_time"], "%Y-%m-%d %H:%M:%S")
+    bad = []
+    for r in result["rows"]:
+        try:
+            ts_dt = datetime.strptime(r["timestamp"], "%Y-%m-%d %H:%M:%S")
+            if not (start_dt <= ts_dt < end_dt):
+                bad.append(r)
+        except Exception:
+            bad.append(r)
+    assert not bad, f"Timestamps outside window: {bad}"
+
+    print(f"Found {result['count']} upload version_check row(s) for device {device_id}, msg_id={msg_id} in expected window.")
+
+def test_api_call_in_idms_upload_logs_itn2707():
+    """Verify that upload_logs api call is seen every 10 minutes in the idms/db or not"""
+    device_id = '122000000040'
+    msg_id = 7
+    result = fetch_api_calls_window(device_id, minutes_before=30, minutes_after=30, msg_id=msg_id)
+    print("DB query details:\n" + "\n".join(result["details"]))
+    print("Rows:", result["rows"])
+
+    assert result["status"] == "Pass", f"No rows found. Details: {result['details']}"
+    assert result["rows"], f"Empty rows list. Details: {result['details']}"
+    # Basic column validation
+    for r in result["rows"]:
+        assert r["device_id"] == device_id, f"Device mismatch: {r}"
+        assert r["msg_id"] == msg_id, f"msg_id mismatch: {r}"
+        assert r["session_id"], f"Missing session_id: {r}"
+        assert r["timestamp"], f"Missing timestamp: {r}"
+
+    # Timestamp window check
+    from datetime import datetime
+    start_dt = datetime.strptime(result["start_time"], "%Y-%m-%d %H:%M:%S")
+    end_dt = datetime.strptime(result["end_time"], "%Y-%m-%d %H:%M:%S")
+    bad = []
+    for r in result["rows"]:
+        try:
+            ts_dt = datetime.strptime(r["timestamp"], "%Y-%m-%d %H:%M:%S")
+            if not (start_dt <= ts_dt < end_dt):
+                bad.append(r)
+        except Exception:
+            bad.append(r)
+    assert not bad, f"Timestamps outside window: {bad}"
+
+    print(f"Found {result['count']} upload_logs row(s) for device {device_id}, msg_id={msg_id} in expected window.")
+
+def test_api_call_in_idms_upload_videolist_itn2710():
+    """Verify that upload_videolist api call is seen every 10 minutes in the idms/db or not"""
+    device_id = '122000000040'
+    msg_id = 8
+    result = fetch_api_calls_window(device_id, minutes_before=30, minutes_after=30, msg_id=msg_id)
+    print("DB query details:\n" + "\n".join(result["details"]))
+    print("Rows:", result["rows"])
+
+    assert result["status"] == "Pass", f"No rows found. Details: {result['details']}"
+    assert result["rows"], f"Empty rows list. Details: {result['details']}"
+    # Basic column validation
+    for r in result["rows"]:
+        assert r["device_id"] == device_id, f"Device mismatch: {r}"
+        assert r["msg_id"] == msg_id, f"msg_id mismatch: {r}"
+        assert r["session_id"], f"Missing session_id: {r}"
+        assert r["timestamp"], f"Missing timestamp: {r}"
+
+    # Timestamp window check
+    from datetime import datetime
+    start_dt = datetime.strptime(result["start_time"], "%Y-%m-%d %H:%M:%S")
+    end_dt = datetime.strptime(result["end_time"], "%Y-%m-%d %H:%M:%S")
+    bad = []
+    for r in result["rows"]:
+        try:
+            ts_dt = datetime.strptime(r["timestamp"], "%Y-%m-%d %H:%M:%S")
+            if not (start_dt <= ts_dt < end_dt):
+                bad.append(r)
+        except Exception:
+            bad.append(r)
+    assert not bad, f"Timestamps outside window: {bad}"
+
+    print(f"Found {result['count']} upload_videolist row(s) for device {device_id}, msg_id={msg_id} in expected window.")
+
+def test_api_call_in_idms_upload_devicestatus_itn2711():
+    """Verify that upload_devicestatus api call is seen every 10 minutes in the idms/db or not"""
+    device_id = '122000000040'
+    msg_id = 10
+    result = fetch_api_calls_window(device_id,minutes_before=30,minutes_after=30,msg_id=msg_id)
+    print("DB query details:\n" + "\n".join(result["details"]))
+    print("Rows:", result["rows"])
+
+    assert result["status"] == "Pass", f"No rows found. Details: {result['details']}"
+    assert result["rows"], f"Empty rows list. Details: {result['details']}"
+    # Basic column validation
+    for r in result["rows"]:
+        assert r["device_id"] == device_id, f"Device mismatch: {r}"
+        assert r["msg_id"] == msg_id, f"msg_id mismatch: {r}"
+        assert r["session_id"], f"Missing session_id: {r}"
+        assert r["timestamp"], f"Missing timestamp: {r}"
+
+    # Timestamp window check
+    from datetime import datetime
+    start_dt = datetime.strptime(result["start_time"], "%Y-%m-%d %H:%M:%S")
+    end_dt = datetime.strptime(result["end_time"], "%Y-%m-%d %H:%M:%S")
+    bad = []
+    for r in result["rows"]:
+        try:
+            ts_dt = datetime.strptime(r["timestamp"], "%Y-%m-%d %H:%M:%S")
+            if not (start_dt <= ts_dt < end_dt):
+                bad.append(r)
+        except Exception:
+            bad.append(r)
+    assert not bad, f"Timestamps outside window: {bad}"
+
+    print(f"Found {result['count']} upload_devicestatus row(s) for device {device_id}, msg_id={msg_id} in expected window.")
+
+def test_api_call_in_idms_upload_observations_itn2706():
+    """Verify that upload_observations api call is seen every 10 minutes in the idms/db or not"""
+    device_id = '122000000040'
+    msg_id = 16
+    result = fetch_api_calls_window(device_id, minutes_before=30, minutes_after=30, msg_id=msg_id)
+    print("DB query details:\n" + "\n".join(result["details"]))
+    print("Rows:", result["rows"])
+
+    assert result["status"] == "Pass", f"No rows found. Details: {result['details']}"
+    assert result["rows"], f"Empty rows list. Details: {result['details']}"
+    # Basic column validation
+    for r in result["rows"]:
+        assert r["device_id"] == device_id, f"Device mismatch: {r}"
+        assert r["msg_id"] == msg_id, f"msg_id mismatch: {r}"
+        assert r["session_id"], f"Missing session_id: {r}"
+        assert r["timestamp"], f"Missing timestamp: {r}"
+
+    # Timestamp window check
+    from datetime import datetime
+    start_dt = datetime.strptime(result["start_time"], "%Y-%m-%d %H:%M:%S")
+    end_dt = datetime.strptime(result["end_time"], "%Y-%m-%d %H:%M:%S")
+    bad = []
+    for r in result["rows"]:
+        try:
+            ts_dt = datetime.strptime(r["timestamp"], "%Y-%m-%d %H:%M:%S")
+            if not (start_dt <= ts_dt < end_dt):
+                bad.append(r)
+        except Exception:
+            bad.append(r)
+    assert not bad, f"Timestamps outside window: {bad}"
+
+    print(f"Found {result['count']} upload_observations row(s) for device {device_id}, msg_id={msg_id} in expected window.")

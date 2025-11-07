@@ -5,7 +5,7 @@ import time
 import subprocess
 import os
 from .logger import setup_logger
-from datetime import datetime
+from datetime import datetime, timedelta
 import calendar
 
 
@@ -25,6 +25,13 @@ DB_CONFIG = {
     "user": os.getenv("DB_USER", "username"),
     "password": os.getenv("DB_PASSWORD", "password"),
     "port": os.getenv("DB_PORT", 5432)
+}
+DB_CONFIG_2 = {
+    "host": os.getenv("HOST_2", os.getenv("HOST_2", "host.info")),
+    "dbname": os.getenv("DB_NAME", os.getenv("DB_NAME", "database-name")),
+    "user": os.getenv("DB_USER", os.getenv("DB_USER", "username")),
+    "password": os.getenv("DB_PASSWORD", os.getenv("DB_PASSWORD", "password")),
+    "port": int(os.getenv("DB_PORT", 5432)),
 }
 
 def connect_to_pod(ip_address: str = voyager_ip, username: str = "voyager", password: str = "voyager", pod: str = "netra"):
@@ -861,7 +868,7 @@ def get_current_time_utc():
     except Exception as e:
         details.append(f"Error retrieving UTC time: {e}")
         return {
-            'status': 'Fail',
+            'status': 'Fail', 
             'utc_time': None,
             'details': details
         }
@@ -1244,6 +1251,96 @@ def wait_for_postgresql_result(query: str, params: tuple = (), timeout: int = 30
         time.sleep(interval)
     print(f"Timeout reached. No records found for {params} in database.")
     return None    
+
+def fetch_api_calls_window(device_id: str, msg_id: int, minutes_before: int = 30, minutes_after: int = 30, 
+                           poll: bool = False, timeout: int = 120, interval: int = 10):
+    """
+    Fetch ndrequest_audit_log rows for device_id in a time window:
+    [now - minutes_before, now + minutes_after).
+    Args:
+        device_id: target device_id (string).
+        minutes_before: window start offset (default 30).
+        minutes_after: window end offset (default 30).
+        poll: whether to poll until at least one row appears.
+        timeout: total seconds for polling.
+        interval: seconds between retries.
+    Returns dict: {status, count, start_time, end_time, rows, details}
+    """
+    details = []
+    if not device_id:
+        return {"status": "Fail", "count": 0, "start_time": None, "end_time": None, "rows": [], "details": ["device_id required"]}
+
+    now_utc = datetime.utcnow()
+    start_dt = now_utc - timedelta(minutes=minutes_before)
+    end_dt = now_utc + timedelta(minutes=minutes_after)
+    start_str = start_dt.strftime("%Y-%m-%d %H:%M:%S")
+    end_str = end_dt.strftime("%Y-%m-%d %H:%M:%S")
+    details.append(f"Window: {start_str} <= time_stamp < {end_str}")
+
+    query = """
+        SELECT
+            device_id AS device_id,
+            session_id AS session_id,
+            time_stamp AS timestamp,
+            msg_id AS msg_id
+        FROM ndrequest_audit_log
+        WHERE device_id = %s
+          AND time_stamp >= %s
+          AND time_stamp < %s
+          AND msg_id = %s;
+    """
+    params = (device_id, start_str, end_str, msg_id)
+
+    def _exec():
+        try:
+            with psycopg2.connect(**DB_CONFIG_2) as conn:
+                conn.autocommit = True
+                with conn.cursor() as cur:
+                    cur.execute(query, params)
+                    return cur.fetchall()
+        except Exception as e:
+            details.append(f"DB error: {e}")
+            return None
+
+    rows = None
+    if poll:
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            rows = _exec()
+            if rows:
+                break
+            details.append(f"No rows yet; retry in {interval}s")
+            time.sleep(interval)
+    else:
+        rows = _exec()
+
+    if not rows:
+        return {
+            "status": "Fail",
+            "count": 0,
+            "start_time": start_str,
+            "end_time": end_str,
+            "rows": [],
+            "details": details or ["No records found"]
+        }
+
+    mapped = [{
+        "device_id": r[0],
+        "session_id": r[1],
+        "timestamp": (r[2].strftime("%Y-%m-%d %H:%M:%S") if hasattr(r[2], "strftime") else str(r[2])),
+        "msg_id": r[3]
+    } for r in rows]
+
+    details.append(f"Fetched {len(mapped)} row(s) from HOST_2")
+    return {
+        "status": "Pass",
+        "count": len(mapped),
+        "start_time": start_str,
+        "end_time": end_str,
+        "rows": mapped,
+        "details": details
+    }
+
 
 if __name__ == "__main__":
     # Connect to pod
