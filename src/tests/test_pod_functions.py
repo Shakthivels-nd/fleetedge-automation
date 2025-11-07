@@ -818,7 +818,7 @@ def test_api_call_in_idms_upload_keep_alive_itn2694():
     """Verify that keep_alive api call is seen every 10 minutes in the idms/db or not"""
     device_id = '122000000040'
     msg_id = 1
-    result = fetch_api_calls_window(device_id,minutes_before=30,minutes_after=30,msg_id=msg_id)
+    result = fetch_api_calls_window(device_id, minutes_before=30, minutes_after=30, msg_id=msg_id)
     print("DB query details:\n" + "\n".join(result["details"]))
     print("Rows:", result["rows"])
 
@@ -851,7 +851,7 @@ def test_api_call_in_idms_upload_version_check_itn2705():
     """Verify that version_check api call is seen every 10 minutes in the idms/db or not"""
     device_id = '122000000040'
     msg_id = 2
-    result = fetch_api_calls_window(device_id,minutes_before=30,minutes_after=30,msg_id=msg_id)
+    result = fetch_api_calls_window(device_id, minutes_before=30, minutes_after=30, msg_id=msg_id)
     print("DB query details:\n" + "\n".join(result["details"]))
     print("Rows:", result["rows"])
 
@@ -884,7 +884,7 @@ def test_api_call_in_idms_upload_logs_itn2707():
     """Verify that upload_logs api call is seen every 10 minutes in the idms/db or not"""
     device_id = '122000000040'
     msg_id = 7
-    result = fetch_api_calls_window(device_id,minutes_before=30,minutes_after=30,msg_id=msg_id)
+    result = fetch_api_calls_window(device_id, minutes_before=30, minutes_after=30, msg_id=msg_id)
     print("DB query details:\n" + "\n".join(result["details"]))
     print("Rows:", result["rows"])
 
@@ -917,7 +917,7 @@ def test_api_call_in_idms_upload_videolist_itn2710():
     """Verify that upload_videolist api call is seen every 10 minutes in the idms/db or not"""
     device_id = '122000000040'
     msg_id = 8
-    result = fetch_api_calls_window(device_id,minutes_before=30,minutes_after=30,msg_id=msg_id)
+    result = fetch_api_calls_window(device_id, minutes_before=30, minutes_after=30, msg_id=msg_id)
     print("DB query details:\n" + "\n".join(result["details"]))
     print("Rows:", result["rows"])
 
@@ -983,7 +983,7 @@ def test_api_call_in_idms_upload_observations_itn2706():
     """Verify that upload_observations api call is seen every 10 minutes in the idms/db or not"""
     device_id = '122000000040'
     msg_id = 16
-    result = fetch_api_calls_window(device_id,minutes_before=30,minutes_after=30,msg_id=msg_id)
+    result = fetch_api_calls_window(device_id, minutes_before=30, minutes_after=30, msg_id=msg_id)
     print("DB query details:\n" + "\n".join(result["details"]))
     print("Rows:", result["rows"])
 

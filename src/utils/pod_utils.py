@@ -5,7 +5,7 @@ import time
 import subprocess
 import os
 from .logger import setup_logger
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta
 import calendar
 
 
@@ -31,7 +31,7 @@ DB_CONFIG_2 = {
     "dbname": os.getenv("DB_NAME", os.getenv("DB_NAME", "database-name")),
     "user": os.getenv("DB_USER", os.getenv("DB_USER", "username")),
     "password": os.getenv("DB_PASSWORD", os.getenv("DB_PASSWORD", "password")),
-    "port": int(os.getenv("DB_PORT", os.getenv("DB_PORT", 5432))),
+    "port": int(os.getenv("DB_PORT", 5432)),
 }
 
 def connect_to_pod(ip_address: str = voyager_ip, username: str = "voyager", password: str = "voyager", pod: str = "netra"):
@@ -1289,7 +1289,7 @@ def fetch_api_calls_window(device_id: str, msg_id: int, minutes_before: int = 30
           AND time_stamp < %s
           AND msg_id = %s;
     """
-    params = (device_id, start_str, end_str,msg_id)
+    params = (device_id, start_str, end_str, msg_id)
 
     def _exec():
         try:
