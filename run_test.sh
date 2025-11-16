@@ -18,7 +18,7 @@ fi
 
 
 echo "Generating Allure HTML report..."
-allure generate "$RESULTS_DIR" -o "$REPORT_DIR" --clean --report-name "App Package Test Report"
+allure generate "$RESULTS_DIR" -o "$REPORT_DIR" --clean --name "FleetEdge Automation Report"
 if [ $? -ne 0 ]; then
     echo "Failed to generate Allure report. Make sure 'allure' is installed."
     exit 1
