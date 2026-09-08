@@ -764,12 +764,53 @@ def test_aws_ping_keepalive_command_itn2660(pod_connection):
 def test_aws_ping_reboot_command_itn2661(pod_connection):
     """Test to verify AWS ping reboot-phone command logs."""
     start_timestamp = int(time.time()) * 1000
-    aws_ping_command("8430","reboot-phone")
+
+    info = get_device_info(pod_connection)
+    assert info['status'] == 'Pass', f"Failed to retrieve device info: {info['details']}"
+    device_id = info['device_id']
+    assert device_id, "device_id missing from get_device_info() result"
+
+    log6_pattern = f"Connecting... Thing: staging-{device_id}"
+    print(f"Device ID for log verification: {device_id}")
+
+    aws_ping_command(device_id, "reboot-phone")  # if first arg is device_id; keep "8430" if required
     print("AWS ping reboot command executed successfully.")
 
-    found_reboot = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/awsiot", "Received command: reboot-phone", start_timestamp, timeout=300, interval=10)
+    found_reboot = search_logs_in_pod(
+        pod_connection,
+        "/home/ubuntu/.nddevice/log/awsiot",
+        "Received command: reboot-phone",
+        start_timestamp,
+        timeout=300,
+        interval=10
+    )
     print("AWS reboot command log entry found successfully.")
     assert found_reboot is not None, "AWS reboot command log entry not found within timeout period."
+
+    rebooting = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/awsiot", "Rebooting...", start_timestamp, timeout=300, interval=10)
+    print("Rebooting... log entry found successfully.")
+    assert rebooting is not None, "Rebooting... log entry not found within timeout period."
+
+    reboot_ping_triggered = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/awsiot", "Reboot ping triggered, will send reboot request after responding to cloud", start_timestamp, timeout=300, interval=10)
+    print("Reboot ping triggered log entry found successfully.")
+    assert reboot_ping_triggered is not None, "Reboot ping triggered log entry not found within timeout period."
+
+    log4 = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/awsiot", "Reboot command detected in completed ping request", start_timestamp, timeout=300, interval=10)
+    print("Reboot command detected log entry found successfully.")
+    assert log4 is not None, "Reboot command detected log entry not found within timeout period."
+
+    log5 = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/awsiot", "Reboot request sent successfully to nd_suspendresume service", start_timestamp, timeout=300, interval=10)
+    print("Reboot request sent successfully log entry found successfully.")
+    assert log5 is not None, "Reboot request sent successfully log entry not found within timeout period."
+
+    log6 = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/awsiot", log6_pattern, start_timestamp, timeout=300, interval=10)
+    print("Connecting... Thing log entry found successfully.")
+    assert log6 is not None, "Connecting... Thing log entry not found within timeout period."
+
+    log7 = search_logs_in_pod(pod_connection, "/home/ubuntu/.nddevice/log/awsiot", "Connected successfully", start_timestamp, timeout=300, interval=10)
+    print("Connected successfully log entry found successfully.")
+    assert log7 is not None, "Connected successfully log entry not found within timeout period."
+
 
 def test_alert_video_in_ndalerts_itn2662(pod_connection):
     """
@@ -816,7 +857,7 @@ def test_alert_video_in_ndalerts_itn2662(pod_connection):
 
 def test_api_call_in_idms_upload_keep_alive_itn2694():
     """Verify that keep_alive api call is seen every 10 minutes in the idms/db or not"""
-    device_id = '122000000040'
+    device_id = '124642129939'
     msg_id = 1
     result = fetch_api_calls_window(device_id, minutes_before=30, minutes_after=30, msg_id=msg_id)
     print("DB query details:\n" + "\n".join(result["details"]))
@@ -849,7 +890,7 @@ def test_api_call_in_idms_upload_keep_alive_itn2694():
     
 def test_api_call_in_idms_upload_version_check_itn2705():
     """Verify that version_check api call is seen every 10 minutes in the idms/db or not"""
-    device_id = '122000000040'
+    device_id = '124642129939'
     msg_id = 2
     result = fetch_api_calls_window(device_id, minutes_before=30, minutes_after=30, msg_id=msg_id)
     print("DB query details:\n" + "\n".join(result["details"]))
@@ -882,7 +923,7 @@ def test_api_call_in_idms_upload_version_check_itn2705():
 
 def test_api_call_in_idms_upload_logs_itn2707():
     """Verify that upload_logs api call is seen every 10 minutes in the idms/db or not"""
-    device_id = '122000000040'
+    device_id = '124642129939'
     msg_id = 7
     result = fetch_api_calls_window(device_id, minutes_before=30, minutes_after=30, msg_id=msg_id)
     print("DB query details:\n" + "\n".join(result["details"]))
@@ -915,7 +956,7 @@ def test_api_call_in_idms_upload_logs_itn2707():
 
 def test_api_call_in_idms_upload_videolist_itn2710():
     """Verify that upload_videolist api call is seen every 10 minutes in the idms/db or not"""
-    device_id = '122000000040'
+    device_id = '124642129939'
     msg_id = 8
     result = fetch_api_calls_window(device_id, minutes_before=30, minutes_after=30, msg_id=msg_id)
     print("DB query details:\n" + "\n".join(result["details"]))
@@ -948,7 +989,7 @@ def test_api_call_in_idms_upload_videolist_itn2710():
 
 def test_api_call_in_idms_upload_devicestatus_itn2711():
     """Verify that upload_devicestatus api call is seen every 10 minutes in the idms/db or not"""
-    device_id = '122000000040'
+    device_id = '124642129939'
     msg_id = 10
     result = fetch_api_calls_window(device_id,minutes_before=30,minutes_after=30,msg_id=msg_id)
     print("DB query details:\n" + "\n".join(result["details"]))
@@ -981,7 +1022,7 @@ def test_api_call_in_idms_upload_devicestatus_itn2711():
 
 def test_api_call_in_idms_upload_observations_itn2706():
     """Verify that upload_observations api call is seen every 10 minutes in the idms/db or not"""
-    device_id = '122000000040'
+    device_id = '124642129939'
     msg_id = 16
     result = fetch_api_calls_window(device_id, minutes_before=30, minutes_after=30, msg_id=msg_id)
     print("DB query details:\n" + "\n".join(result["details"]))

@@ -427,7 +427,7 @@ def validate_services_uptime_diff(pod_connection, directory="/home/ubuntu/.nddev
     min_uptime = min(uptimes_in_seconds)
     max_uptime = max(uptimes_in_seconds)
     diff = max_uptime - min_uptime
-
+ 
     print(f"\nEarliest uptime: {min_uptime} seconds")
     print(f"Latest uptime:   {max_uptime} seconds")
     print(f"Difference:       {diff} seconds")
