@@ -1,3 +1,11 @@
 pytest
-pexpect
 pytest-html
+pexpect
+python-dotenv
+requests
+psycopg2-binary
+
+# Optional: enables known/unknown-issue classification in live_report.html.
+# Without it (or without JIRA_SERVER/JIRA_USERNAME/JIRA_API_TOKEN in .env),
+# the live report still works, failures just show as unclassified.
+jira
