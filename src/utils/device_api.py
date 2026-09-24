@@ -121,6 +121,21 @@ DEVICE_API: dict[str, dict[str, str]] = {
         "returns": "Dict[str, bool]",
         "description": "Check cert/key files contain the PRIVATE marker",
     },
+    "is_service_active": {
+        "signature": 'service_name, directory="/home/ubuntu/.nddevice/latest/service"',
+        "returns": "dict",
+        "description": "Check whether a supervisor-managed service is RUNNING; {status, service, state, details}",
+    },
+    "restart_service": {
+        "signature": 'service_name, directory="/home/ubuntu/.nddevice/latest/service"',
+        "returns": "dict",
+        "description": "Restart a supervisor-managed service via supervisorctl; {status, service, output, details}",
+    },
+    "get_service_pid": {
+        "signature": 'service_name, directory="/home/ubuntu/.nddevice/latest/service"',
+        "returns": "dict",
+        "description": "Get a service's PID directly from supervisorctl status (more reliable than pidof when the process name differs from the service name); {status, service, pid, details}",
+    },
     "get_device_info": {
         "signature": 'deviceconfig_path="/home/ubuntu/config/deviceconfig.ini"',
         "returns": "dict",

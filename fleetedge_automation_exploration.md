@@ -285,6 +285,39 @@ A `.gitignore` now exists at the repo root, covering: `__pycache__/`, `.pytest_c
 
 ---
 
+## SERVICEMONITOR TESTS (src/tests/servicemonitor/)
+
+Ported from the pytest_device_validator reference's `tests/servicemonitor/` (24 status-check tests, one per monitored service, each step-wise with multiple `test_stepN_...` functions per service). Scoped down to the 11 FE services that have a clear name match against the reference's set — see below for the full 22-vs-24 comparison done when this was built.
+
+**New DeviceTest methods added to support this** (see DEVICETEST FACADE, DEVICE / OTA CHECKS):
+- `device.is_service_active(service_name)` → `{status, service, state, details}` — `supervisorctl status <service>`-backed (our services are supervisor-managed, not systemd, unlike the reference's `systemctl is-active`).
+- `device.restart_service(service_name)` → `{status, service, output, details}` — `supervisorctl restart <service>`-backed (reference used `systemctl restart` via a `CommandResult`-returning facade we don't have).
+
+**Service comparison (FE's `supervisorctl status *` vs. the reference's 24 servicemonitor tests), done 2026-09-15:**
+- **11 matched against a reference test, built first**: `svc`, `bagheera`, `awsiot`, `circular_buffer`, `power_monitor`, `scheduler_manager`, `speed`, `time_sync` (reference: `timesync`), `uploader`, `outwardAnalyticsClient`, `analyticsService`.
+- **9 FE-only services (no reference equivalent), built afterward on user request, same 8-step pattern**: `HealthStatsManager`, `SendMetricgRPC`, `audioPlayback`, `inwardAnalyticsClient`, `nd_fe_alerts`, `nd_suspendresume`, `nd_system_status`, `podlogger`, `unifiedAnalyticsClient`.
+- **Deliberately not built**: `btfv` (already has a dedicated test at `src/tests/btfv/test_btfv_service_status.py`, not duplicated here) and `service_mon` itself (the thing doing the monitoring, not something it monitors in this pattern).
+- All 20 of FE's 22 running services are now covered (`supervisorctl status *` minus `btfv` and `service_mon`).
+- **Reference-only services, not present in FE at all**: `apm`, `diagnostic`, `fan_control`, `obd`, `wifi_mgr`, `nd_sam`, `nd_bt`, `otacheck`, `scheduler`, `deletemetadata`, `keepalivemanager`, `inference`, `inference_inertial`.
+
+**Log tags — CONFIRMED against real FE logs (2026-09-15).** Each test asserts on `service_mon` log lines like `"Service started: <TAG> :"` / `"Service error: <TAG> :"` / `"Service stopped: <TAG> :"`. The reference device's own tags (`NDC` for bagheera, `CB` for circular_buffer, `PWR` for power_monitor, etc.) were checked directly against a live FE pod and **ruled out** — `grep -h "Service started" /home/ubuntu/.nddevice/log/service_mon/*` on the pod showed FE logs the real process/service name instead of an abbreviated code (confirmed real lines seen: `"Service started: Scheduler :"`, `"Service started: otacheck :"`, `"Service started: keep_alive_manager :"`, `"Service started: outwardAnalyticsClientNRT :"`, `"Service started: deleteMetaData :"`).
+
+Based on this, all 11 `LOG_TAG` constants were set to the service's own supervisorctl name. The user then independently confirmed on the pod (`supervisorctl status <service>` for each) that FE's `service_mon` logs every service under its own service name, the same pattern already directly observed for `scheduler_manager`/`outwardAnalyticsClient` — so all 11 tags are now considered confirmed, not guesses:
+- `bagheera` → `"bagheera"`, `svc` → `"svc"`, `awsiot` → `"awsiot"`, `circular_buffer` → `"circular_buffer"`, `power_monitor` → `"power_monitor"`, `speed` → `"speed"`, `time_sync` → `"time_sync"`, `uploader` → `"uploader"`, `analyticsService` → `"analyticsService"`.
+- Two exceptions where the service_mon-visible name differs from the supervisorctl service name (confirmed directly via log grep, not inference): `scheduler_manager` → `"Scheduler"`, `outwardAnalyticsClient` → `"outwardAnalyticsClientNRT"`.
+
+Note: `timesync` (no underscore) is **not** a valid supervisorctl service name on FE — `supervisorctl status timesync` returns `ERROR (no such process)`. The real service is `time_sync` (with underscore, confirmed via `supervisorctl status *`), which is what `SERVICE_NAME`/`LOG_TAG` already use in `test_time_sync_status_check.py`.
+
+The 9 FE-only services added afterward (`HealthStatsManager`, `SendMetricgRPC`, `audioPlayback`, `inwardAnalyticsClient`, `nd_fe_alerts`, `nd_suspendresume`, `nd_system_status`, `podlogger`, `unifiedAnalyticsClient`) all use `LOG_TAG = SERVICE_NAME` (the by-then-confirmed pattern) with no per-service exceptions — none of them showed up in the earlier direct-log-grep sample, so treat their tag as inherited-confirmed (same reasoning as the other 9 non-exception services above), not independently re-verified.
+
+**⚠️ Trailing-colon bug found and fixed (2026-09-16).** All 20 log-search steps originally searched for `f"Service started: {LOG_TAG} :"` (note the trailing `" :"` after the tag) — copied from the reference framework's exact log format. The user ran `test_analytics_service_status_check.py` against the pod and it failed at step 3 despite the real log line being present: `grep`'d output showed `"...Service started: AnalyticsService "` (a trailing space, **no colon**) — so the assumed `" :"` suffix doesn't hold for every service. Since a shorter search string can only match more (never less), the fix was applied to **all 20** files, not just this one: every `search_log` call and its docstring/assert message now search for `f"Service started: {LOG_TAG}"` / `f"Service error: {LOG_TAG}"` / `f"Service stopped: {LOG_TAG}"` with no trailing colon. If a future failure turns out to be a real format mismatch (not just this colon issue), re-check the exact log line with `grep` before assuming the service itself is broken.
+
+Each test file follows the same 8-step shape (verify active → restart → verify started-log → kill -6 (SIGABRT) → verify error-log → kill -15 (SIGTERM) → verify stopped-log → restart + re-verify active), one file per service under `src/tests/servicemonitor/`. They're plain module-level `test_stepN_...` functions (not classes, unlike the reference's `TestServicemonitorNNN...` classes) to match this repo's existing flat-function convention (see TEST NAMING CONVENTION) rather than introducing class-based tests only here.
+
+`functionality_map.py` handles the naming collision this creates (every file has the same `test_step1_...`...`test_step8_...` names) by keying `FUNCTIONALITY_MAP` per **file stem** (`test_bagheera_status_check`, `test_speed_status_check`, etc.) instead of a shared `"servicemonitor"` folder key — `_resolve_module_key()` only uses the parent-folder key when it actually matches, so it falls through to the file stem here. All 11 file-stem keys share `"Service Monitor"` in `SERVICE_DISPLAY_NAMES` so the Coverage tab's Service column groups them under one row with 11 functionality sub-rows (one per underlying service), rather than showing 11 separate "services." This required extending `get_functionality_group`'s suffix matching to also support `startswith` (a `"test_step"` prefix) alongside the existing `endswith` (`itnNNNN` suffix) matching used elsewhere.
+
+---
+
 ## File Structure Reference
 
 ```
@@ -298,6 +331,8 @@ src/
       test_btfv_service_status.py        ← btfv supervisorctl RUNNING-status check
     power_monitor/
       test_power_monitor_service_status.py ← power_monitor supervisorctl RUNNING-status check
+    servicemonitor/
+      test_<service>_status_check.py (x20) ← step-wise service_mon start/crash/stop log verification per applicable service (see SERVICEMONITOR TESTS)
   utils/
     device_test.py               ← DeviceTest facade — wraps engine/ modules below, keeps command_log
     device_api.py                ← DEVICE_API registry — every DeviceTest method, kept in sync by hand

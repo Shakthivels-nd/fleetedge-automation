@@ -8,13 +8,17 @@ the run finishes).
 
 Ported from the pytest_device_validator reference framework's live_report.py,
 cut down to what this repo actually is: a single pytest process against one
-device, ~35 flat test functions (no multi-step test cases, no multi-device
-orchestration, no relay/camera hardware). One row per test function.
+device, no multi-device orchestration, no relay/camera hardware. Most test
+files are flat (one row per test function), but step-wise files where every
+test is named test_stepN_... (e.g. src/tests/servicemonitor/*.py) are
+collapsed into one row per file — see _group_into_test_cases — so an
+11-service, 88-function servicemonitor suite still reads as 11 test cases,
+each expandable to its individual test_stepN_ results.
 
 Tabs (Overview / Failures / Coverage / All Tests / Device) mirror the
-reference's tab layout, scaled to this repo's single-device, flat-test-list
-shape — see functionality_map.py for the (much smaller) test-to-functionality
-grouping used by the Coverage tab and Failures tab.
+reference's tab layout, scaled to this repo's single-device shape — see
+functionality_map.py for the (much smaller) test-to-functionality grouping
+used by the Coverage tab and Failures tab.
 
 Each test's command_log (from the `device` fixture's DeviceTest instance,
 see src/utils/device_test.py) is captured and rendered in an expandable
@@ -42,12 +46,21 @@ try:
 except Exception:
     _JIRA_AVAILABLE = False
 
-from src.tests.functionality_map import get_functionality_group_from_nodeid
+from src.tests.functionality_map import get_functionality_group_from_nodeid, get_service_from_nodeid
 
 
 REPORT_DIR = Path("src/reports")
 RESULTS_FILE = REPORT_DIR / ".live_results.jsonl"
 REPORT_PATH = REPORT_DIR / "live_report.html"
+
+# A test function named test_step1_..., test_step2_..., etc. is one step of
+# a larger, step-wise test case (see src/tests/servicemonitor/*.py) rather
+# than an independent test in its own right. A file is grouped into a single
+# test-case row only when EVERY test function in it matches this pattern —
+# a file mixing step-named and plain functions (or using the itnNNNN
+# convention used everywhere else) is left as one row per function, exactly
+# as before. See SERVICEMONITOR TESTS in fleetedge_automation_exploration.md.
+STEP_NAME_PATTERN = re.compile(r"^test_step\d+_")
 
 
 def pytest_addoption(parser: pytest.Parser) -> None:
@@ -76,7 +89,20 @@ class LiveReportPlugin:
         self._jira_cache: Optional["JiraCache"] = None
         self._device_id = config.getoption("--device-id") if config else "Unknown"
         self._device_ip = config.getoption("--device-ip") if config else "Unknown"
+        # --ota-version is only a starting fallback (a manually-typed CLI flag
+        # or OTA_VERSION env var — see conftest.py — that can go stale). It's
+        # replaced with the real, live device.ota_version (auto-detected from
+        # the pod itself, see device_test.py) as soon as the device fixture
+        # is available — see pytest_runtest_makereport's "setup" branch below.
         self._ota_version = config.getoption("--ota-version") if config else "N/A"
+        self._ota_version_from_device = False
+        # device.command_log is one growing list shared by every test in the
+        # session (the `device` fixture is session-scoped, see conftest.py),
+        # so it's never cleared between tests. Without tracking where each
+        # test started, a later test's report would include every earlier
+        # test's command_log entries too. Keyed by item.nodeid so the
+        # snapshot survives even if the same item object were reused.
+        self._command_log_start: Dict[str, int] = {}
         self._write_report()  # initial empty report so the file exists immediately
 
     # ── Hooks ──────────────────────────────────────────────────────────
@@ -95,15 +121,40 @@ class LiveReportPlugin:
 
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_makereport(self, item: pytest.Item, call):
-        """Attach captured command_log (from the `device` fixture, if used) and
-        the assertion message to the report object for this phase."""
+        """Snapshot device.command_log's length right after fixture setup
+        (call.when == "setup", where item.funcargs is already populated —
+        verified empirically, since pytest_runtest_setup itself fires before
+        funcargs is filled in), then on call.when == "call" attach only the
+        slice of command_log added during this test's own body (not the
+        whole session's cumulative log — see __init__) plus the assertion
+        message."""
         outcome = yield
         report = outcome.get_result()
+
+        if call.when == "setup":
+            device = item.funcargs.get("device") if hasattr(item, "funcargs") else None
+            command_log = getattr(device, "command_log", None) if device else None
+            self._command_log_start[item.nodeid] = len(command_log) if command_log else 0
+            # Prefer the OTA version the device fixture actually auto-detected
+            # on the real pod (device.ota_version, set once at DeviceTest
+            # construction — see device_test.py) over the static --ota-version
+            # CLI flag, which is just whatever string was manually passed and
+            # can silently go stale/wrong. Only overrides once, the first time
+            # a device fixture becomes available in this session.
+            if device is not None and not self._ota_version_from_device:
+                live_version = getattr(device, "ota_version", None)
+                if live_version:
+                    self._ota_version = live_version
+                    self._ota_version_from_device = True
+            return
+
         if call.when != "call":
             return
 
         device = item.funcargs.get("device")
-        report._command_log = list(getattr(device, "command_log", []) or [])
+        full_log = list(getattr(device, "command_log", []) or [])
+        start = self._command_log_start.get(item.nodeid, 0)
+        report._command_log = full_log[start:]
         report._assertion_msg = str(call.excinfo.value) if call.excinfo is not None else ""
         report._doc = (item.function.__doc__ or "").strip() if hasattr(item, "function") else ""
 
@@ -147,6 +198,7 @@ class LiveReportPlugin:
         return {
             "test_id": test_id,
             "nodeid": report.nodeid,
+            "module_key": Path(report.nodeid.split("::")[0]).stem,
             "doc": getattr(report, "_doc", ""),
             "verdict": verdict,
             "duration_s": report.duration,
@@ -155,6 +207,7 @@ class LiveReportPlugin:
             "command_log": getattr(report, "_command_log", []),
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "functionality_group": get_functionality_group_from_nodeid(report.nodeid, test_id),
+            "service": get_service_from_nodeid(report.nodeid, test_id),
         }
 
     def _append_result(self, result: Dict[str, Any]) -> None:
@@ -173,6 +226,60 @@ class LiveReportPlugin:
                 except json.JSONDecodeError:
                     pass
         return results
+
+    def _group_into_test_cases(self, results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Collapse step-wise files (every test in the file named test_stepN_...,
+        e.g. src/tests/servicemonitor/*.py) into one row per file, with the
+        individual test_stepN_ results nested as "steps" for the detail panel.
+
+        A file where even one test doesn't match test_stepN_ is left alone —
+        every one of its tests stays its own top-level row, same as before
+        this grouping was added (e.g. test_sanity_functions.py's itnNNNN tests).
+        """
+        by_module: Dict[str, List[Dict[str, Any]]] = {}
+        order: List[str] = []
+        for r in results:
+            key = r.get("module_key", r["test_id"])
+            if key not in by_module:
+                by_module[key] = []
+                order.append(key)
+            by_module[key].append(r)
+
+        cases: List[Dict[str, Any]] = []
+        for key in order:
+            module_results = by_module[key]
+            is_stepwise = len(module_results) > 1 and all(
+                STEP_NAME_PATTERN.match(r["test_id"]) for r in module_results
+            )
+            if not is_stepwise:
+                cases.extend(module_results)
+                continue
+
+            verdicts = [r["verdict"] for r in module_results]
+            if "FAIL" in verdicts or "ERROR" in verdicts:
+                overall = "FAIL" if "FAIL" in verdicts else "ERROR"
+            elif all(v == "SKIP" for v in verdicts):
+                overall = "SKIP"
+            else:
+                overall = "PASS"
+
+            first = module_results[0]
+            cases.append({
+                "test_id": key,
+                "nodeid": first["nodeid"].split("::")[0],
+                "module_key": key,
+                "doc": first.get("doc", "") or f"{len(module_results)}-step test case",
+                "verdict": overall,
+                "duration_s": sum(r["duration_s"] for r in module_results),
+                "assertion_msg": next(
+                    (r["assertion_msg"] for r in module_results if r["verdict"] in ("FAIL", "ERROR")), ""
+                ),
+                "timestamp": module_results[-1]["timestamp"],
+                "functionality_group": first.get("functionality_group", "Other"),
+                "service": first.get("service", "Other"),
+                "steps": module_results,
+            })
+        return cases
 
     # ── HTML rendering — shared helpers ───────────────────────────────
 
@@ -244,11 +351,17 @@ class LiveReportPlugin:
 
         summary = self._esc(result.get("assertion_msg") or "")[:200]
 
+        steps = result.get("steps")
+        test_id_cell = self._esc(result["test_id"])
+        if steps:
+            step_pass = sum(1 for s in steps if s["verdict"] == "PASS")
+            test_id_cell += f' <span class="step-count-badge">{step_pass}/{len(steps)} steps</span>'
+
         row_html = (
             f'<tr class="tr {row_cls}" data-verdict="{verdict}" '
             f'data-search="{self._esc(result["test_id"] + " " + result.get("doc", "")).lower()}">'
             f'<td class="col-idx">{index}</td>'
-            f'<td class="col-id" title="{self._esc(result["nodeid"])}">{self._esc(result["test_id"])}</td>'
+            f'<td class="col-id" title="{self._esc(result["nodeid"])}">{test_id_cell}</td>'
             f'<td class="col-doc">{self._esc(result.get("doc", ""))}</td>'
             f'<td class="col-verdict"><span class="{badge_cls}">{verdict}</span></td>'
             f'{issue_cell}'
@@ -259,9 +372,27 @@ class LiveReportPlugin:
             f'</tr>\n'
         )
 
+        if steps:
+            detail_html = (
+                f'<tr class="detail-row" id="detail-{uid}" hidden>'
+                f'<td colspan="9">'
+                f'<div class="detail-panel">'
+                f'{self._render_steps(steps)}'
+                f'</div>'
+                f'</td></tr>\n'
+            )
+            return row_html, detail_html
+
         cmd_html = self._render_command_log(result.get("command_log", []))
         stdout_html = ""
-        if result.get("stdout"):
+        # Skip the raw "Captured stdout" block when command_log has entries —
+        # command_log already holds the clean {cmd, output} pair for each
+        # device.<method>() call (e.g. search_log's actual matched line, with
+        # none of the polling/detection noise pytest's stdout capture picks up
+        # from the underlying pexpect session), so showing both is redundant
+        # and the raw stdout is the noisier of the two. Stdout is only shown
+        # for tests that made no device.<method>() calls (pure assertions).
+        if result.get("stdout") and not result.get("command_log"):
             stdout_html = (
                 f'<div class="detail-block"><div class="detail-label">Captured stdout</div>'
                 f'<pre>{self._esc(result["stdout"])}</pre></div>'
@@ -286,20 +417,65 @@ class LiveReportPlugin:
         )
         return row_html, detail_html
 
+    def _render_steps(self, steps: List[Dict[str, Any]]) -> str:
+        """Render a step-wise test case's individual test_stepN_ results as
+        collapsible step cards inside the parent row's detail panel."""
+        cards = ""
+        for si, step in enumerate(steps, 1):
+            s_verdict = step["verdict"]
+            s_badge_cls = f"badge-{s_verdict.lower()}"
+            step_row_cls = "row-fail" if s_verdict in ("FAIL", "ERROR") else ""
+            doc_html = f'<div class="step-doc">{self._esc(step.get("doc", ""))}</div>' if step.get("doc") else ""
+
+            cmd_html = self._render_command_log(step.get("command_log", []))
+            assertion_html = ""
+            if step.get("assertion_msg"):
+                assertion_html = (
+                    f'<div class="detail-block"><div class="detail-label">Assertion</div>'
+                    f'<pre>{self._esc(step["assertion_msg"])}</pre></div>'
+                )
+            stdout_html = ""
+            # Same rationale as the flat-test detail panel: skip raw stdout
+            # when command_log already has the clean matched-line output.
+            if step.get("stdout") and not step.get("command_log"):
+                stdout_html = (
+                    f'<div class="detail-block"><div class="detail-label">Captured stdout</div>'
+                    f'<pre>{self._esc(step["stdout"])}</pre></div>'
+                )
+
+            cards += (
+                f'<div class="step-card {step_row_cls}">'
+                f'<button type="button" class="step-card-head" onclick="toggleStepCard(this)">'
+                f'<div class="step-card-title"><span class="step-index">{si}</span>'
+                f'<div class="step-card-title-text">{doc_html}<code class="step-func-name">{self._esc(step["test_id"])}</code></div></div>'
+                f'<div class="step-card-meta"><span class="{s_badge_cls}">{s_verdict}</span>'
+                f'<span>{step["duration_s"]:.2f}s</span><span class="step-expand-indicator">+</span></div>'
+                f'</button>'
+                f'<div class="step-card-body" hidden>'
+                f'{assertion_html}'
+                f'{stdout_html}'
+                f'<div class="detail-block"><div class="detail-label">Command log ({len(step.get("command_log", []))})</div>{cmd_html}</div>'
+                f'</div>'
+                f'</div>\n'
+            )
+        return cards
+
     def _render_table(self, results: List[Dict[str, Any]], uid_prefix: str, table_id: str) -> str:
         rows_html = ""
-        details_html = ""
         for i, result in enumerate(results, 1):
             row, detail = self._render_row(result, i, uid_prefix=uid_prefix)
-            rows_html += row
-            details_html += detail
+            # Each detail row is placed immediately after its own summary row
+            # (not appended after every summary row) so expanding "+" reveals
+            # its panel right below the row you clicked, not stacked at the
+            # bottom of the table under every other expanded row.
+            rows_html += row + detail
         return (
             f'<table id="{table_id}">'
             f'<thead><tr>'
             f'<th>#</th><th>Test ID</th><th>Description</th><th>Result</th><th>Issue</th>'
             f'<th>Duration</th><th>Summary</th><th>Time</th><th>Details</th>'
             f'</tr></thead>'
-            f'<tbody>{rows_html}{details_html}</tbody>'
+            f'<tbody>{rows_html}</tbody>'
             f'</table>'
         )
 
@@ -384,38 +560,56 @@ class LiveReportPlugin:
         return sections
 
     def _render_coverage_tab(self, results: List[Dict[str, Any]]) -> str:
-        groups: Dict[str, List[Dict[str, Any]]] = {}
+        # Two-level grouping: service -> functionality group -> results,
+        # rendered with the service cell row-spanning its functionality rows
+        # (same layout as the pytest_device_validator reference's Coverage tab).
+        services: Dict[str, Dict[str, List[Dict[str, Any]]]] = {}
         for r in results:
-            groups.setdefault(r.get("functionality_group", "Other"), []).append(r)
+            svc = r.get("service", "Other")
+            fg = r.get("functionality_group", "Other")
+            services.setdefault(svc, {}).setdefault(fg, []).append(r)
 
         rows = ""
-        for name in sorted(groups.keys()):
-            g = groups[name]
-            g_total = len(g)
-            g_pass = sum(1 for r in g if r["verdict"] == "PASS")
-            g_fail = sum(1 for r in g if r["verdict"] in ("FAIL", "ERROR"))
-            g_skip = sum(1 for r in g if r["verdict"] == "SKIP")
-            g_pct = f"{(g_pass / g_total * 100):.0f}%" if g_total else "0%"
-            rows += (
-                f'<tr>'
-                f'<td style="font-weight:600">{self._esc(name)}</td>'
-                f'<td style="text-align:center">{g_total}</td>'
-                f'<td style="text-align:center"><span class="badge-pass">{g_pass}</span></td>'
-                f'<td style="text-align:center"><span class="badge-fail">{g_fail}</span></td>'
-                f'<td style="text-align:center"><span class="badge-skip">{g_skip}</span></td>'
-                f'<td style="text-align:center">{g_pct}</td>'
-                f'</tr>'
-            )
+        for svc_name in sorted(services.keys()):
+            func_groups = services[svc_name]
+            sorted_group_names = sorted(func_groups.keys())
+            total_func_rows = len(sorted_group_names)
+            for fi, fg_name in enumerate(sorted_group_names):
+                fg_results = func_groups[fg_name]
+                fg_total = len(fg_results)
+                fg_pass = sum(1 for r in fg_results if r["verdict"] == "PASS")
+                fg_fail = sum(1 for r in fg_results if r["verdict"] in ("FAIL", "ERROR"))
+                fg_skip = sum(1 for r in fg_results if r["verdict"] == "SKIP")
+                fg_pct = f"{(fg_pass / fg_total * 100):.0f}%" if fg_total else "0%"
+
+                svc_cell = ""
+                if fi == 0:
+                    svc_cell = (
+                        f'<td rowspan="{total_func_rows}" '
+                        f'style="font-weight:700;vertical-align:top;border-right:2px solid #e2e8f0">'
+                        f'{self._esc(svc_name)}</td>'
+                    )
+                rows += (
+                    f'<tr>'
+                    f'{svc_cell}'
+                    f'<td style="font-weight:600">{self._esc(fg_name)}</td>'
+                    f'<td style="text-align:center">{fg_total}</td>'
+                    f'<td style="text-align:center"><span class="badge-pass">{fg_pass}</span></td>'
+                    f'<td style="text-align:center"><span class="badge-fail">{fg_fail}</span></td>'
+                    f'<td style="text-align:center"><span class="badge-skip">{fg_skip}</span></td>'
+                    f'<td style="text-align:center">{fg_pct}</td>'
+                    f'</tr>'
+                )
         if not rows:
-            rows = '<tr><td colspan="6" class="no-cmds">No results yet.</td></tr>'
+            rows = '<tr><td colspan="7" class="no-cmds">No results yet.</td></tr>'
 
         return f"""
 <div class="card">
-  <div class="card-h">Coverage by functionality group</div>
+  <div class="card-h">Coverage by service and functionality</div>
   <div class="card-b" style="padding:0">
     <div class="scroll-table">
       <table>
-        <tr><th>Functionality</th><th>Total</th><th>Pass</th><th>Fail</th><th>Skip</th><th>Pass %</th></tr>
+        <tr><th>Service</th><th>Functionality</th><th style="text-align:center">Total</th><th style="text-align:center">Pass</th><th style="text-align:center">Fail</th><th style="text-align:center">Skip</th><th style="text-align:center">Pass %</th></tr>
         {rows}
       </table>
     </div>
@@ -447,7 +641,7 @@ class LiveReportPlugin:
 </div>
 """
         table_html = self._render_table(results, uid_prefix="dev-row", table_id="device-results-table")
-        return device_table + f'<div class="card"><div class="card-h">All results for this device</div><div class="card-b" style="padding:0">{table_html}</div></div>'
+        return device_table + f'<div class="card"><div class="card-h">Results for {self._esc(self._device_id)}</div><div class="card-b" style="padding:0">{table_html}</div></div>'
 
     def _render_all_tests_tab(self, results: List[Dict[str, Any]]) -> str:
         toolbar = """
@@ -466,7 +660,8 @@ class LiveReportPlugin:
         return toolbar + table_html
 
     def _write_report(self, final: bool = False) -> None:
-        results = self._load_results()
+        raw_results = self._load_results()
+        results = self._group_into_test_cases(raw_results)
         total = len(results)
         passed = sum(1 for r in results if r["verdict"] == "PASS")
         failed = sum(1 for r in results if r["verdict"] == "FAIL")
@@ -498,12 +693,11 @@ class LiveReportPlugin:
 </head>
 <body>
 <div class="header">
-  <h1>FleetEdge Automation Report</h1>
-  <div class="status-badge status-{status_label.lower().replace(' ', '-')}">{status_label}</div>
+  <h1>FleetEdge Automation Report{f" &ndash; {self._esc(self._ota_version)}" if self._ota_version and self._ota_version != "N/A" else ""}</h1>
 </div>
 <div class="meta-bar">
   <span>Generated: {generated}</span>
-  <span>Elapsed: {elapsed_fmt}</span>
+  <span>Elapsed: {elapsed_fmt} <span class="status-label status-{status_label.lower().replace(' ', '-')}">({status_label})</span></span>
   <span>Device: {self._esc(self._device_id)}</span>
 </div>
 <div class="summary-cards">
@@ -543,10 +737,10 @@ _CSS = """
 body { font-family: -apple-system, Segoe UI, Helvetica, Arial, sans-serif; margin: 0; background: #f4f5f7; color: #1a1a1a; }
 .header { display: flex; align-items: center; gap: 16px; padding: 20px 24px; background: #1e293b; color: white; }
 .header h1 { margin: 0; font-size: 20px; }
-.status-badge { padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 700; }
-.status-in-progress { background: #f59e0b; color: #1a1a1a; }
-.status-complete { background: #16a34a; }
 .meta-bar { display: flex; gap: 24px; padding: 8px 24px; font-size: 12px; color: #666; background: #e2e8f0; }
+.status-label { font-weight: 600; }
+.status-label.status-in-progress { color: #b45309; }
+.status-label.status-complete { color: #15803d; }
 .summary-cards { display: flex; gap: 12px; padding: 16px 24px; flex-wrap: wrap; }
 .card { background: white; border-radius: 8px; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
 .summary-cards .card { padding: 12px 20px; text-align: center; min-width: 90px; }
@@ -621,6 +815,18 @@ th { background: #f1f5f9; font-size: 11px; text-transform: uppercase; color: #47
 .cmd-line code { background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 11.5px; }
 .cmd-ts { font-size: 10px; color: #94a3b8; }
 .no-cmds { color: #94a3b8; font-size: 12px; font-style: italic; }
+.step-count-badge { display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 10px; background: #e2e8f0; color: #475569; }
+.step-card { border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; overflow: hidden; background: #fff; }
+.step-card.row-fail { border-left: 3px solid #dc2626; }
+.step-card-head { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 8px 12px; border: none; background: #f8fafc; cursor: pointer; text-align: left; }
+.step-card-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.step-index { flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%; background: #e2e8f0; color: #475569; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.step-card-title-text { min-width: 0; }
+.step-doc { font-size: 12px; color: #1e293b; }
+.step-func-name { font-size: 10.5px; color: #94a3b8; }
+.step-card-meta { display: flex; align-items: center; gap: 10px; flex-shrink: 0; font-size: 11px; color: #64748b; }
+.step-expand-indicator { font-weight: 700; }
+.step-card-body { padding: 10px 12px; border-top: 1px solid #eef0f2; }
 """
 
 _JS = """
@@ -640,6 +846,12 @@ function switchTab(name) {
 function toggleDetail(uid) {
   var row = document.getElementById('detail-' + uid);
   if (row) { row.hidden = !row.hidden; }
+}
+function toggleStepCard(btn) {
+  var card = btn.closest('.step-card');
+  if (!card) return;
+  var body = card.querySelector('.step-card-body');
+  if (body) { body.hidden = !body.hidden; }
 }
 function filterRows() {
   var q = document.getElementById('search').value.toLowerCase();

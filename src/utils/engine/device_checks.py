@@ -165,6 +165,60 @@ def validate_services_uptime_diff(pod_connection, directory="/home/ubuntu/.nddev
         print(f"\n All services are within {max_diff_seconds} seconds difference.")
 
 
+def is_service_active(pod_connection, service_name, directory="/home/ubuntu/.nddevice/latest/service"):
+    """Check whether a supervisor-managed service is RUNNING.
+
+    Returns {status: "Pass"/"Fail", service, state, details}. "Pass" only
+    when supervisorctl reports RUNNING; any other state (STOPPED, FATAL,
+    NOT_FOUND, ...) is "Fail" with that state recorded for diagnosis.
+    """
+    cmd = f"cd {directory} && supervisorctl status {service_name}"
+    output = run_command_on_pod(pod_connection, cmd) or ""
+    parts = output.split()
+    state = parts[1] if len(parts) >= 2 and parts[0] == service_name else "NOT_FOUND"
+    status = "Pass" if state == "RUNNING" else "Fail"
+    details = [f"supervisorctl status for '{service_name}': {state}"]
+    print(f"[ServiceStatus] {service_name}: {state}")
+    return {"status": status, "service": service_name, "state": state, "details": details}
+
+
+def get_service_pid(pod_connection, service_name, directory="/home/ubuntu/.nddevice/latest/service"):
+    """Get a supervisor-managed service's PID directly from `supervisorctl status`,
+    e.g. parsing "209" out of "awsiot RUNNING pid 209, uptime 0:38:12".
+
+    More reliable than `pidof <service_name>` when the service's actual process/
+    binary name doesn't match its supervisorctl service name — supervisorctl's
+    own view is authoritative regardless of process naming.
+
+    Returns {status: "Pass"/"Fail", service, pid, details}. "Pass" only when
+    the service is RUNNING and a PID was parsed; "Fail" (pid=None) otherwise.
+    """
+    cmd = f"cd {directory} && supervisorctl status {service_name}"
+    output = run_command_on_pod(pod_connection, cmd) or ""
+    parts = output.split()
+    pid = None
+    if len(parts) >= 4 and parts[0] == service_name and parts[1] == "RUNNING" and parts[2] == "pid":
+        pid = parts[3].rstrip(",")
+    status = "Pass" if pid else "Fail"
+    details = [f"supervisorctl status for '{service_name}': {output.strip()}"]
+    print(f"[ServicePid] {service_name}: {pid if pid else 'NOT FOUND'}")
+    return {"status": status, "service": service_name, "pid": pid, "details": details}
+
+
+def restart_service(pod_connection, service_name, directory="/home/ubuntu/.nddevice/latest/service"):
+    """Restart a supervisor-managed service via `supervisorctl restart`.
+
+    Returns {status: "Pass"/"Fail", service, output, details}. "Pass" when
+    supervisorctl reports the service as started again after the restart.
+    """
+    cmd = f"cd {directory} && supervisorctl restart {service_name}"
+    output = run_command_on_pod(pod_connection, cmd) or ""
+    status = "Pass" if "started" in output.lower() else "Fail"
+    details = [f"supervisorctl restart output for '{service_name}': {output.strip()}"]
+    print(f"[ServiceRestart] {service_name}: {output.strip()}")
+    return {"status": status, "service": service_name, "output": output.strip(), "details": details}
+
+
 def check_private_key_markers(pod_connection, directory="/home/ubuntu/.nddevice/certificate"):
     """Check if key files contain the 'PRIVATE' marker.
     Returns dict mapping filename to boolean.

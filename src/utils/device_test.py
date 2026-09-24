@@ -187,6 +187,24 @@ class DeviceTest:
         self._log(f"check_private_key_markers({directory})", result)
         return result
 
+    def is_service_active(self, service_name: str, directory: str = "/home/ubuntu/.nddevice/latest/service") -> Dict[str, Any]:
+        """Check whether a supervisor-managed service is RUNNING."""
+        result = device_checks.is_service_active(self._pod_connection, service_name, directory)
+        self._log(f"is_service_active({service_name})", result)
+        return result
+
+    def restart_service(self, service_name: str, directory: str = "/home/ubuntu/.nddevice/latest/service") -> Dict[str, Any]:
+        """Restart a supervisor-managed service via supervisorctl."""
+        result = device_checks.restart_service(self._pod_connection, service_name, directory)
+        self._log(f"restart_service({service_name})", result)
+        return result
+
+    def get_service_pid(self, service_name: str, directory: str = "/home/ubuntu/.nddevice/latest/service") -> Dict[str, Any]:
+        """Get a supervisor-managed service's PID directly from supervisorctl status."""
+        result = device_checks.get_service_pid(self._pod_connection, service_name, directory)
+        self._log(f"get_service_pid({service_name})", result)
+        return result
+
     def get_device_info(self, deviceconfig_path: str = "/home/ubuntu/config/deviceconfig.ini") -> Dict[str, Any]:
         """Retrieve device_type, device_id, ota_version from the pod."""
         result = device_checks.get_device_info(self._pod_connection, deviceconfig_path)

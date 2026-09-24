@@ -69,6 +69,137 @@ FUNCTIONALITY_MAP = {
             "test_power_monitor_service_status",
         ],
     },
+
+    "unifiedAnalyticsClient": {
+        "Startup & Thread Liveness": ["test_step"],
+    },
+
+    # ─── OTACHECK ─────────────────────────────────────────────────────
+    # Keyed by file stem (like SERVICEMONITOR below), not the "otacheck"
+    # folder, since more otacheck test files are expected here with their
+    # own test_stepN_... naming — a shared folder key would collide the
+    # same way servicemonitor's files would.
+    "test_otacheck_version_check_multiples_of_10": {
+        "Version Check API": ["test_step"],
+    },
+    "test_otacheck_counter_increment": {
+        "Counter Behavior": ["test_step"],
+    },
+    "test_otacheck_override_configs_download": {
+        "Configuration": ["test_step"],
+    },
+    "test_otacheck_current_version_logged": {
+        "Version Check API": ["test_step"],
+    },
+    "test_otacheck_sleep_based_on_device_id_modulo": {
+        "Scheduling & Timing": ["test_step"],
+    },
+    "test_otacheck_rtc_time_not_in_sync": {
+        "Scheduling & Timing": ["test_step"],
+    },
+
+    # ─── SERVICEMONITOR ───────────────────────────────────────────────
+    # Each file under src/tests/servicemonitor/ uses the same step names
+    # (test_step1_..., test_step2_..., etc.) across every service, so they
+    # can't be told apart by test name alone within a shared "servicemonitor"
+    # key — _resolve_module_key() falls back to the file stem in that case,
+    # so each service gets its own entry here keyed by its file's stem.
+    "test_bagheera_status_check": {
+        "Service Monitor — bagheera": ["test_step"],
+    },
+    "test_svc_status_check": {
+        "Service Monitor — svc": ["test_step"],
+    },
+    "test_awsiot_status_check": {
+        "Service Monitor — awsiot": ["test_step"],
+    },
+    "test_circular_buffer_status_check": {
+        "Service Monitor — circular_buffer": ["test_step"],
+    },
+    "test_power_monitor_status_check": {
+        "Service Monitor — power_monitor": ["test_step"],
+    },
+    "test_scheduler_manager_status_check": {
+        "Service Monitor — scheduler_manager": ["test_step"],
+    },
+    "test_speed_status_check": {
+        "Service Monitor — speed": ["test_step"],
+    },
+    "test_time_sync_status_check": {
+        "Service Monitor — time_sync": ["test_step"],
+    },
+    "test_uploader_status_check": {
+        "Service Monitor — uploader": ["test_step"],
+    },
+    "test_outward_analytics_client_status_check": {
+        "Service Monitor — outwardAnalyticsClient": ["test_step"],
+    },
+    "test_analytics_service_status_check": {
+        "Service Monitor — analyticsService": ["test_step"],
+    },
+    "test_healthstatsmanager_status_check": {
+        "Service Monitor — HealthStatsManager": ["test_step"],
+    },
+    "test_sendmetricgrpc_status_check": {
+        "Service Monitor — SendMetricgRPC": ["test_step"],
+    },
+    "test_audio_playback_status_check": {
+        "Service Monitor — audioPlayback": ["test_step"],
+    },
+    "test_inward_analytics_client_status_check": {
+        "Service Monitor — inwardAnalyticsClient": ["test_step"],
+    },
+    "test_nd_fe_alerts_status_check": {
+        "Service Monitor — nd_fe_alerts": ["test_step"],
+    },
+    "test_nd_suspendresume_status_check": {
+        "Service Monitor — nd_suspendresume": ["test_step"],
+    },
+    "test_nd_system_status_status_check": {
+        "Service Monitor — nd_system_status": ["test_step"],
+    },
+    "test_podlogger_status_check": {
+        "Service Monitor — podlogger": ["test_step"],
+    },
+    "test_unified_analytics_client_status_check": {
+        "Service Monitor — unifiedAnalyticsClient": ["test_step"],
+    },
+}
+
+
+# Display name for each module key used above — shown as the "Service"
+# column in the Coverage tab. Keep in sync with FUNCTIONALITY_MAP's keys.
+SERVICE_DISPLAY_NAMES = {
+    "test_sanity_functions": "Sanity",
+    "btfv": "BTFV",
+    "power_monitor": "Power Monitor",
+    "unifiedAnalyticsClient": "unifiedAnalyticsClient",
+    "test_otacheck_version_check_multiples_of_10": "otacheck",
+    "test_otacheck_counter_increment": "otacheck",
+    "test_otacheck_override_configs_download": "otacheck",
+    "test_otacheck_current_version_logged": "otacheck",
+    "test_otacheck_sleep_based_on_device_id_modulo": "otacheck",
+    "test_otacheck_rtc_time_not_in_sync": "otacheck",
+    "test_bagheera_status_check": "Service Monitor",
+    "test_svc_status_check": "Service Monitor",
+    "test_awsiot_status_check": "Service Monitor",
+    "test_circular_buffer_status_check": "Service Monitor",
+    "test_power_monitor_status_check": "Service Monitor",
+    "test_scheduler_manager_status_check": "Service Monitor",
+    "test_speed_status_check": "Service Monitor",
+    "test_time_sync_status_check": "Service Monitor",
+    "test_uploader_status_check": "Service Monitor",
+    "test_outward_analytics_client_status_check": "Service Monitor",
+    "test_analytics_service_status_check": "Service Monitor",
+    "test_healthstatsmanager_status_check": "Service Monitor",
+    "test_sendmetricgrpc_status_check": "Service Monitor",
+    "test_audio_playback_status_check": "Service Monitor",
+    "test_inward_analytics_client_status_check": "Service Monitor",
+    "test_nd_fe_alerts_status_check": "Service Monitor",
+    "test_nd_suspendresume_status_check": "Service Monitor",
+    "test_nd_system_status_status_check": "Service Monitor",
+    "test_podlogger_status_check": "Service Monitor",
+    "test_unified_analytics_client_status_check": "Service Monitor",
 }
 
 
@@ -77,27 +208,30 @@ def get_functionality_group(module_key: str, test_id: str) -> str:
 
     module_key: the test module's stem, e.g. "test_sanity_functions", "btfv".
     test_id: full test function name, e.g. "test_ini_fields_present_itn2446".
+    A suffix is usually an itnNNNN ticket id (matched via endswith), but a
+    plain prefix like "test_step" also works (matched via startswith) for
+    modules where every test shares the same step-numbered naming, e.g.
+    src/tests/servicemonitor/*_status_check.py.
     Returns "Other" if no mapping is found.
     """
     module_map = FUNCTIONALITY_MAP.get(module_key, {})
     for group, suffixes in module_map.items():
         for suffix in suffixes:
-            if test_id.endswith(suffix) or test_id == suffix:
+            if test_id.endswith(suffix) or test_id.startswith(suffix) or test_id == suffix:
                 return group
     return "Other"
 
 
-def get_functionality_group_from_nodeid(nodeid: str, test_id: str) -> str:
-    """Extract the module key from a pytest nodeid and return its functionality group.
+def _resolve_module_key(nodeid: str, test_id: str) -> str:
+    """Return the FUNCTIONALITY_MAP key that actually matches this test.
 
     Tries the parent folder name first (e.g. "btfv" for
     "src/tests/btfv/test_btfv_service_status.py") since that's how
     per-service subfolders are keyed in FUNCTIONALITY_MAP, then falls back
     to the file stem (e.g. "test_sanity_functions") for test files that
-    live directly under src/tests/ with no dedicated subfolder.
-
-    nodeid: e.g. "src/tests/btfv/test_btfv_service_status.py::test_btfv_service_status".
-    test_id: e.g. "test_btfv_service_status".
+    live directly under src/tests/ with no dedicated subfolder. Returns
+    the file stem if neither maps a group for this test (i.e. it'll show
+    up as "Other" downstream), so there's always a stable module key.
     """
     path_part = nodeid.split("::")[0].replace("\\", "/")
     segments = path_part.split("/")
@@ -105,8 +239,27 @@ def get_functionality_group_from_nodeid(nodeid: str, test_id: str) -> str:
     parent_folder = segments[-2] if len(segments) >= 2 else None
 
     if parent_folder and parent_folder in FUNCTIONALITY_MAP:
-        group = get_functionality_group(parent_folder, test_id)
-        if group != "Other":
-            return group
+        if get_functionality_group(parent_folder, test_id) != "Other":
+            return parent_folder
 
-    return get_functionality_group(file_stem, test_id)
+    return file_stem
+
+
+def get_functionality_group_from_nodeid(nodeid: str, test_id: str) -> str:
+    """Extract the module key from a pytest nodeid and return its functionality group.
+
+    nodeid: e.g. "src/tests/btfv/test_btfv_service_status.py::test_btfv_service_status".
+    test_id: e.g. "test_btfv_service_status".
+    """
+    module_key = _resolve_module_key(nodeid, test_id)
+    return get_functionality_group(module_key, test_id)
+
+
+def get_service_from_nodeid(nodeid: str, test_id: str) -> str:
+    """Return the display-friendly service name for a test (Coverage tab's Service column).
+
+    Falls back to the raw module key (e.g. an unmapped file stem) if no
+    display name is registered for it in SERVICE_DISPLAY_NAMES.
+    """
+    module_key = _resolve_module_key(nodeid, test_id)
+    return SERVICE_DISPLAY_NAMES.get(module_key, module_key)
