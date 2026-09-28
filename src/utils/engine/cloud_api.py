@@ -91,3 +91,87 @@ def aws_ping_command(user_id, ping_command):
         test_status = "Fail"
     finally:
         return test_status, response_status
+
+
+def aws_reboot(user_id):
+    """
+    Send reboot-phone command to device via cloud ping endpoint.
+    Args:
+        user_id: User ID to include in the reboot-phone request.
+    Returns:
+        tuple: (success (bool), HTTP status code (int))
+    """
+    success = False
+    status_code = 0
+    try:
+        session_key, status, access_token = login_api()
+        if status:
+            device_id = os.getenv("DEVICE_ID", "00000000000")
+            url = f"https://idms-staging.netradyne.com/restserver/api/v1/devices/{device_id}/ping"
+            headers = {
+                "session-key": session_key,
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {access_token}"
+            }
+            data = {
+                "deviceId": device_id,
+                "userId": user_id,
+                "commands": ["reboot-phone"]
+            }
+            response = requests.post(url, headers=headers, data=json.dumps(data))
+            status_code = response.status_code
+            response_content = response.json()
+            print(response_content)
+            data = response_content.get("data")
+            if status_code == 200 and data and data.get("status") == 0:
+                success = True
+            else:
+                raise Exception(f"aws_reboot api call response is not received: {response_content}")
+        else:
+            raise Exception("session key is not generated")
+    except Exception as e:
+        print(f"Error in aws_reboot api: {e}")
+        success = False
+    finally:
+        return success, status_code
+
+
+def toggle_ka_certificate_check(disabled=True):
+    """
+    Toggle certificate-check-disabled-on-keep-alive-api via cloud (IDMS opsdashboard API).
+    Args:
+        disabled (bool): True to disable cert check on KA, False to enable.
+    Returns:
+        tuple: (success (bool), HTTP status code (int))
+    """
+    success = False
+    status_code = 0
+    try:
+        session_key, status, access_token = login_api()
+        if status:
+            device_id = os.getenv("DEVICE_ID", "00000000000")
+            url = "https://idms-staging.netradyne.com/restserver/api/v1/opsdashboard/toggle-certificate-check-for-keep-alive"
+            headers = {
+                "session-key": session_key,
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {access_token}"
+            }
+            data = {
+                "certificate-check-disabled-on-keep-alive-api": disabled,
+                "device_id": device_id
+            }
+            response = requests.post(url, headers=headers, data=json.dumps(data))
+            status_code = response.status_code
+            response_content = response.json()
+            print(response_content)
+            if status_code == 200 and response_content.get("response") is True:
+                success = True
+            else:
+                raise Exception(f"toggle_ka_certificate_check api call response is not received: {response_content}")
+        else:
+            raise Exception("session key is not generated")
+    except Exception as e:
+        print(f"Error in toggle_ka_certificate_check api: {e}")
+        success = False
+    finally:
+        return success, status_code

@@ -52,7 +52,7 @@ def run_command_on_voyager(ip_address: str = voyager_ip, username: str = "voyage
     return output if output else None
 
 
-def run_command_on_pod(child, cmd: str, directory: str = None):
+def run_command_on_pod(child, cmd: str, directory: str = None, timeout: int = 30):
     """
     Run a command inside the already connected pod session.
     Returns only the output of the current command, excluding the command itself.
@@ -60,7 +60,7 @@ def run_command_on_pod(child, cmd: str, directory: str = None):
     full_cmd = f"cd {directory} && {cmd}" if directory else cmd
     child.sendline(full_cmd)
     try:
-        child.expect([r'[#\$] ', pexpect.EOF, pexpect.TIMEOUT], timeout=30)
+        child.expect([r'[#\$] ', pexpect.EOF, pexpect.TIMEOUT], timeout=timeout)
     except pexpect.TIMEOUT:
         logger.error(f"Command timed out: {full_cmd}")
         return ""

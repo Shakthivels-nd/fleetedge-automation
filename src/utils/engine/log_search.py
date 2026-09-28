@@ -103,6 +103,24 @@ def search_logs_in_pod(child, log_dir: str, search_term: str, start_timestamp: i
             return int(m3.group(1))
         return None
 
+    filename_epoch_re = re.compile(r'(\d{10,13})')
+
+    def _extract_filename_ts_ms(filename):
+        """Fall back to the epoch embedded in the log filename itself
+        (e.g. log_1790316254000.log) when the matched line has no inline
+        timestamp of its own -- some services (e.g. unifieduploader) log
+        bare JSON responses with no per-line timestamp, only a timestamped
+        filename per rotation."""
+        m = filename_epoch_re.search(filename)
+        if not m:
+            return None
+        token = m.group(1)
+        if len(token) == 13:
+            return int(token)
+        if len(token) == 10:
+            return int(token) * 1000
+        return None
+
     while time.time() < end_time:
         cmd = f"grep -Hn '{search_term}' {log_dir}/*.log 2>/dev/null || true"
         output = run_command_on_pod(child, cmd)
@@ -116,7 +134,17 @@ def search_logs_in_pod(child, log_dir: str, search_term: str, start_timestamp: i
                 # parts[2] is remainder of line after filename + line number
                 remainder = parts[2].strip()
                 ts_val = _extract_line_ts_ms(remainder)
-                if ts_val is not None and ts_val >= start_epoch_ms:
+                if ts_val is None:
+                    # No inline timestamp in the line itself -- try the
+                    # filename's embedded epoch before giving up, rather
+                    # than silently dropping a line that genuinely matched.
+                    ts_val = _extract_filename_ts_ms(parts[0])
+                if ts_val is None:
+                    # Still unknown -- keep the line rather than discard a
+                    # real match; we can't prove it's before start_epoch_ms.
+                    print(f"Matched line with no extractable timestamp, keeping: {line}")
+                    filtered_lines.append(line)
+                elif ts_val >= start_epoch_ms:
                     print(f"Matched line ts={ts_val}: {line}")
                     filtered_lines.append(line)
             if filtered_lines:

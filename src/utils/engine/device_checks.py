@@ -296,6 +296,138 @@ def check_file_availability(pod_connection, file_path):
         'details': details
     }
 
+def control_api_calls(pod_connection, block_host, host="idms-staging.netradyne.com"):
+    """Block or restore device API calls to `host` by editing /etc/hosts on the pod.
+
+    block_host=True redirects `host` to 127.0.0.1 (loopback), which makes
+    device API calls to it fail; block_host=False removes that redirect.
+    Idempotent on block: skips the append if already blocked, so repeated
+    block() calls don't leave duplicate lines in /etc/hosts.
+
+    Returns {status: "Pass"/"Fail", host, details}.
+    """
+    details = []
+
+    if block_host:
+        check_cmd = f"grep -q '{host}' /etc/hosts && echo ALREADY_BLOCKED || echo NOT_BLOCKED"
+        check_output = run_command_on_pod(pod_connection, check_cmd) or ""
+        if "ALREADY_BLOCKED" in check_output:
+            details.append(f"{host} already blocked in /etc/hosts — skipping duplicate append")
+            print(f"[ControlApiCalls] {host} already blocked: Pass")
+            return {"status": "Pass", "host": host, "details": details}
+
+        # No sudo: the pod session already runs as root, and sudo isn't
+        # installed on these devices (a prior sudo-based version silently
+        # "passed" while actually failing with "sudo: command not found").
+        cmd = f'sh -c \'echo "127.0.0.1       {host}" >> /etc/hosts\''
+        action_desc = f"Blocking api calls to {host}"
+    else:
+        # sed -i fails here (/etc/hosts can't be renamed -- "Device or
+        # resource busy", likely a bind-mounted file in the container), so
+        # filter to a temp file and overwrite in place with cat instead of
+        # relying on sed's own rename-based -i implementation.
+        cmd = f"grep -v '{host}' /etc/hosts > /tmp/hosts.new && cat /tmp/hosts.new > /etc/hosts && rm -f /tmp/hosts.new"
+        action_desc = f"Unblocking api calls to {host}"
+
+    details.append(action_desc)
+    output = run_command_on_pod(pod_connection, cmd)
+    details.append(f"Command output: {output}")
+
+    # Verify the edit actually took effect instead of trusting that the
+    # command produced *some* output (a failed command like "command not
+    # found" is still non-None output, so that check alone can't tell
+    # success from failure).
+    verify_output = run_command_on_pod(pod_connection, f"grep -q '{host}' /etc/hosts && echo BLOCKED || echo NOT_BLOCKED") or ""
+    is_blocked = "BLOCKED" in verify_output and "NOT_BLOCKED" not in verify_output
+    status = "Pass" if (is_blocked if block_host else not is_blocked) else "Fail"
+    details.append(f"Post-edit /etc/hosts check: {'blocked' if is_blocked else 'not blocked'}")
+    print(f"[ControlApiCalls] {action_desc}: {status}")
+    return {"status": status, "host": host, "details": details}
+
+
+def compare_datetime(pod_connection, threshold_seconds=120):
+    """Compare host time vs device (pod) time.
+
+    Returns {status: "Pass"/"Fail", drift_seconds, threshold_seconds, details}.
+    "Pass" when the absolute difference between host UTC time and the pod's
+    reported epoch time is within threshold_seconds.
+    """
+    import time as _time
+
+    details = []
+    host_epoch = int(_time.time())
+    output = run_command_on_pod(pod_connection, "date -u +%s") or ""
+    try:
+        device_epoch = int(output.strip().splitlines()[-1])
+    except (ValueError, IndexError):
+        details.append(f"Could not parse device epoch time from output: '{output.strip()}'")
+        return {
+            "status": "Fail",
+            "drift_seconds": None,
+            "threshold_seconds": threshold_seconds,
+            "details": details,
+        }
+
+    drift = abs(host_epoch - device_epoch)
+    details.append(f"Host epoch: {host_epoch}, Device epoch: {device_epoch}, Drift: {drift}s")
+    status = "Pass" if drift <= threshold_seconds else "Fail"
+    print(f"[CompareDatetime] drift={drift}s (threshold={threshold_seconds}s): {status}")
+    return {
+        "status": status,
+        "drift_seconds": drift,
+        "threshold_seconds": threshold_seconds,
+        "details": details,
+    }
+
+
+def get_current_session_name(pod_connection, extension=None, cam_num=None, path="/home/iriscli/files/"):
+    """Find the most recently modified session's filename in `path`.
+
+    Ported from the nd_test_bot reference's FileUtils_obj.get_current_session_name:
+    lists `path` sorted by modification time (newest first) and extracts
+    the trip/part/session-name substring matching the on-device video
+    filename convention (`_trip<id>_part<id>_<lat>_<lon>_0.0_<ts>_y`).
+    FE's own on-device filename convention is confirmed identical (see
+    test_sanity_functions.py, which parses the same pattern).
+
+    Args:
+        pod_connection: active pexpect spawn.
+        extension: appended to the parsed session name if given (e.g. ".mp4").
+        cam_num: if given (0=outward, 1=inward per FE's convention, matching
+            test_sanity_functions.py's f"...{file}" usage with a 0/1 prefix),
+            prepended as a string prefix onto the session name -- this is a
+            plain string concatenation, not a lookup, mirroring the
+            reference's own behavior.
+        path: directory to scan (defaults to /home/iriscli/files/, FE's
+            on-device video directory -- matches the reference's own
+            default and FE's existing ffprobe/ls precedent for this path).
+
+    Returns {status: "Pass"/"Fail", session_name, details}.
+    """
+    details = []
+    list_cmd = (
+        f"ls -t {path} | grep -o "
+        r"'_trip[0-9a-zA-Z]*_part[0-9a-zA-Z]*_[0-9.]*_[0-9.]*_0\.0_[0-9]*_y' "
+        "| head -1"
+    )
+    output = run_command_on_pod(pod_connection, list_cmd)
+    session_name = (output or "").strip()
+
+    if not session_name:
+        details.append(f"No session name found in {path}")
+        print(f"[GetCurrentSessionName] No session name found in {path}: Fail")
+        return {"status": "Fail", "session_name": None, "details": details}
+
+    if extension:
+        session_name = session_name + extension
+    if cam_num is not None:
+        session_name = str(cam_num) + session_name
+
+    details.append(f"Session name found: {session_name}")
+    print(f"[GetCurrentSessionName] {session_name}: Pass")
+    return {"status": "Pass", "session_name": session_name, "details": details}
+
+
 def get_device_info(pod_connection, deviceconfig_path="/home/ubuntu/config/deviceconfig.ini"):
     """Retrieve device_type, device_id, ota_version.
     Args:
