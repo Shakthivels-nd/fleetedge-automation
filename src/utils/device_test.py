@@ -76,9 +76,9 @@ class DeviceTest:
 
     # ── Core connection operations ───────────────────────────────────────
 
-    def run(self, cmd: str, directory: Optional[str] = None) -> Optional[str]:
+    def run(self, cmd: str, directory: Optional[str] = None, timeout: int = 30) -> Optional[str]:
         """Run a command on the already-connected pod session."""
-        output = connection.run_command_on_pod(self._pod_connection, cmd, directory)
+        output = connection.run_command_on_pod(self._pod_connection, cmd, directory, timeout)
         self._log(f"run({cmd})", output)
         return output
 
@@ -211,6 +211,25 @@ class DeviceTest:
         self._log(f"get_device_info({deviceconfig_path})", result)
         return result
 
+    def compare_datetime(self, threshold_seconds: int = 120) -> Dict[str, Any]:
+        """Compare host time vs device (pod) time; Pass if drift is within threshold_seconds."""
+        result = device_checks.compare_datetime(self._pod_connection, threshold_seconds)
+        self._log(f"compare_datetime(threshold_seconds={threshold_seconds})", result)
+        return result
+
+    def get_current_session_name(self, extension: Optional[str] = None, cam_num: Optional[int] = None,
+                                  path: str = "/home/iriscli/files/") -> Dict[str, Any]:
+        """Find the most recently modified session's filename in path (newest-first ls -t + pattern match)."""
+        result = device_checks.get_current_session_name(self._pod_connection, extension, cam_num, path)
+        self._log(f"get_current_session_name(extension={extension}, cam_num={cam_num}, path={path})", result)
+        return result
+
+    def control_api_calls(self, block_host: bool, host: str = "idms-staging.netradyne.com") -> Dict[str, Any]:
+        """Block or restore device API calls to host by editing /etc/hosts on the pod."""
+        result = device_checks.control_api_calls(self._pod_connection, block_host, host)
+        self._log(f"control_api_calls(block_host={block_host}, host={host})", result)
+        return result
+
     # ── Voyager host operations ──────────────────────────────────────────
 
     def reboot_voyager(self) -> None:
@@ -246,6 +265,18 @@ class DeviceTest:
         """Send an AWS IoT ping command (e.g. 'keep-alive', 'reboot-phone') to the device."""
         result = cloud_api.aws_ping_command(user_id, ping_command)
         self._log(f"aws_ping_command({user_id}, {ping_command})", result)
+        return result
+
+    def toggle_ka_certificate_check(self, disabled: bool = True):
+        """Toggle certificate-check-disabled-on-keep-alive-api via cloud."""
+        result = cloud_api.toggle_ka_certificate_check(disabled)
+        self._log(f"toggle_ka_certificate_check(disabled={disabled})", result)
+        return result
+
+    def aws_reboot(self, user_id: str):
+        """Send reboot-phone command to device via cloud ping endpoint."""
+        result = cloud_api.aws_reboot(user_id)
+        self._log(f"aws_reboot({user_id})", result)
         return result
 
     # ── Database (Postgres) ──────────────────────────────────────────────

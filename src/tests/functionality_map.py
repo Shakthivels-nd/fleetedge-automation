@@ -164,6 +164,111 @@ FUNCTIONALITY_MAP = {
     "test_unified_analytics_client_status_check": {
         "Service Monitor — unifiedAnalyticsClient": ["test_step"],
     },
+
+    # ─── AWSIOT ───────────────────────────────────────────────────────
+    # Each file under src/tests/awsiot/ uses the same test_stepN_... naming
+    # scheme (see live_report.py's STEP_NAME_PATTERN grouping), so — same
+    # reasoning as SERVICEMONITOR above — they're keyed individually by
+    # file stem rather than a shared "awsiot" folder key.
+    "test_awsiot_ping_keepalive_reboot": {
+        "Ping & Reboot": ["test_step"],
+    },
+    "test_awsiot_ping_request_reboot_phone": {
+        "Ping & Reboot": ["test_step"],
+    },
+    "test_awsiot_reboot_request_to_powermon": {
+        "Ping & Reboot": ["test_step"],
+    },
+    "test_awsiot_api_call_versioncheck": {
+        "Ping & Reboot": ["test_step"],
+    },
+    "test_awsiot_verify_connection_ignition_high": {
+        "Connection & Server": ["test_step"],
+    },
+    "test_awsiot_verify_connection_no_network": {
+        "Connection & Server": ["test_step"],
+    },
+    "test_awsiot_server_connected_or_not": {
+        "Connection & Server": ["test_step"],
+    },
+    "test_awsiot_verify_server_address": {
+        "Connection & Server": ["test_step"],
+    },
+    "test_awsiot_verify_logging": {
+        "Connection & Server": ["test_step"],
+    },
+    "test_awsiot_check_private_key": {
+        "Certificates & Keys": ["test_step"],
+    },
+    "test_awsiot_check_public_key": {
+        "Certificates & Keys": ["test_step"],
+    },
+    "test_awsiot_check_certificates": {
+        "Certificates & Keys": ["test_step"],
+    },
+    "test_awsiot_check_encryption_and_permission_of_private_keys": {
+        "Certificates & Keys": ["test_step"],
+    },
+    "test_awsiot_verify_ka_certificate_check": {
+        "Certificates & Keys": ["test_step"],
+    },
+    "test_awsiot_verify_iot_priv_key_decryption_before_connect": {
+        "Certificates & Keys": ["test_step"],
+    },
+    # test_awsiot_verify_private_awsiot_key_encryption_on_regeneration,
+    # test_awsiot_verify_private_jwt_key_encryption_on_regeneration,
+    # test_awsiot_verify_backup_corruption_handling,
+    # test_awsiot_service_exiting_when_bad_certificates_found,
+    # test_awsiot_critical_info_certificates_corrupted, and
+    # test_awsiot_jwt_registration_when_corrupted were removed -- cert/key
+    # corruption tests leave the device degraded until self-heal, and FE
+    # has a known issue that makes this category not applicable. See
+    # PORT_TRACKER.csv for the skip reasons (known_issue_cert_corruption).
+    "test_awsiot_eventdata_api_call": {
+        "Event Data & Upload": ["test_step"],
+    },
+    "test_awsiot_eventdata_api_response": {
+        "Event Data & Upload": ["test_step"],
+    },
+    "test_awsiot_receive_video_request": {
+        "Event Data & Upload": ["test_step"],
+    },
+    "test_awsiot_send_request_to_uploader": {
+        "Event Data & Upload": ["test_step"],
+    },
+    "test_awsiot_state_change_to_upload_state": {
+        "Event Data & Upload": ["test_step"],
+    },
+    "test_awsiot_verify_payload": {
+        "Shadow Payload": ["test_step"],
+    },
+    "test_awsiot_service_status_check": {
+        "Service Health": ["test_step"],
+    },
+    "test_awsiot_service_stability": {
+        "Service Health": ["test_step"],
+    },
+    "test_awsiot_msgq_creation": {
+        "Service Health": ["test_step"],
+    },
+    "test_awsiot_check_binary_and_permissions": {
+        "Service Health": ["test_step"],
+    },
+    "test_awsiot_override_parse_check": {
+        "Configuration": ["test_step"],
+    },
+    "test_awsiot_verify_vehicle_class": {
+        "Configuration": ["test_step"],
+    },
+    "test_awsiot_verify_publish_enabled": {
+        "Configuration": ["test_step"],
+    },
+    "test_awsiot_verify_gps_publish_frequency": {
+        "Configuration": ["test_step"],
+    },
+    "test_awsiot_all_cameras_enabled": {
+        "Configuration": ["test_step"],
+    },
 }
 
 
@@ -200,6 +305,36 @@ SERVICE_DISPLAY_NAMES = {
     "test_nd_system_status_status_check": "Service Monitor",
     "test_podlogger_status_check": "Service Monitor",
     "test_unified_analytics_client_status_check": "Service Monitor",
+    "test_awsiot_ping_keepalive_reboot": "AWSIOT",
+    "test_awsiot_ping_request_reboot_phone": "AWSIOT",
+    "test_awsiot_reboot_request_to_powermon": "AWSIOT",
+    "test_awsiot_api_call_versioncheck": "AWSIOT",
+    "test_awsiot_verify_connection_ignition_high": "AWSIOT",
+    "test_awsiot_verify_connection_no_network": "AWSIOT",
+    "test_awsiot_server_connected_or_not": "AWSIOT",
+    "test_awsiot_verify_server_address": "AWSIOT",
+    "test_awsiot_verify_logging": "AWSIOT",
+    "test_awsiot_check_private_key": "AWSIOT",
+    "test_awsiot_check_public_key": "AWSIOT",
+    "test_awsiot_check_certificates": "AWSIOT",
+    "test_awsiot_check_encryption_and_permission_of_private_keys": "AWSIOT",
+    "test_awsiot_verify_ka_certificate_check": "AWSIOT",
+    "test_awsiot_verify_iot_priv_key_decryption_before_connect": "AWSIOT",
+    "test_awsiot_eventdata_api_call": "AWSIOT",
+    "test_awsiot_eventdata_api_response": "AWSIOT",
+    "test_awsiot_receive_video_request": "AWSIOT",
+    "test_awsiot_send_request_to_uploader": "AWSIOT",
+    "test_awsiot_state_change_to_upload_state": "AWSIOT",
+    "test_awsiot_verify_payload": "AWSIOT",
+    "test_awsiot_service_status_check": "AWSIOT",
+    "test_awsiot_service_stability": "AWSIOT",
+    "test_awsiot_msgq_creation": "AWSIOT",
+    "test_awsiot_check_binary_and_permissions": "AWSIOT",
+    "test_awsiot_override_parse_check": "AWSIOT",
+    "test_awsiot_verify_vehicle_class": "AWSIOT",
+    "test_awsiot_verify_publish_enabled": "AWSIOT",
+    "test_awsiot_verify_gps_publish_frequency": "AWSIOT",
+    "test_awsiot_all_cameras_enabled": "AWSIOT",
 }
 
 

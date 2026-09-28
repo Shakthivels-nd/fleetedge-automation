@@ -38,7 +38,7 @@ DEVICE_API: dict[str, dict[str, str]] = {
 
     # ── Core connection operations ───────────────────────────────────────
     "run": {
-        "signature": "cmd, directory=None",
+        "signature": "cmd, directory=None, timeout=30",
         "returns": "str | None",
         "description": "Run a command on the already-connected pod session",
     },
@@ -141,6 +141,21 @@ DEVICE_API: dict[str, dict[str, str]] = {
         "returns": "dict",
         "description": "Retrieve device_type, device_id, ota_version from the pod; {status, device_type, device_id, ota_version, details}",
     },
+    "compare_datetime": {
+        "signature": "threshold_seconds=120",
+        "returns": "dict",
+        "description": "Compare host time vs device (pod) time; {status, drift_seconds, threshold_seconds, details}",
+    },
+    "get_current_session_name": {
+        "signature": 'extension=None, cam_num=None, path="/home/iriscli/files/"',
+        "returns": "dict",
+        "description": "Find the most recently modified session's filename in path (ls -t + trip/part pattern match); {status, session_name, details}",
+    },
+    "control_api_calls": {
+        "signature": 'block_host, host="idms-staging.netradyne.com"',
+        "returns": "dict",
+        "description": "Block/restore device API calls to host via /etc/hosts loopback redirect; {status, host, details}",
+    },
 
     # ── Voyager host operations ──────────────────────────────────────────
     "reboot_voyager": {
@@ -181,6 +196,16 @@ DEVICE_API: dict[str, dict[str, str]] = {
         "signature": "user_id, ping_command",
         "returns": "tuple[str, bool]",
         "description": "Send an AWS IoT ping command (e.g. 'keep-alive', 'reboot-phone') to the device",
+    },
+    "toggle_ka_certificate_check": {
+        "signature": "disabled=True",
+        "returns": "tuple[bool, int]",
+        "description": "Toggle certificate-check-disabled-on-keep-alive-api via cloud (IDMS opsdashboard API)",
+    },
+    "aws_reboot": {
+        "signature": "user_id",
+        "returns": "tuple[bool, int]",
+        "description": "Send reboot-phone command to device via cloud ping endpoint (IDMS devices/{id}/ping API)",
     },
 
     # ── Database (Postgres) ──────────────────────────────────────────────
