@@ -1,5 +1,7 @@
+import json
 import os
 import re
+import time as _time
 
 from ..logger import setup_logger
 from .connection import run_command_on_pod
@@ -219,6 +221,26 @@ def restart_service(pod_connection, service_name, directory="/home/ubuntu/.nddev
     return {"status": status, "service": service_name, "output": output.strip(), "details": details}
 
 
+def stop_service(pod_connection, service_name, directory="/home/ubuntu/.nddevice/latest/service"):
+    """Stop a supervisor-managed service via `supervisorctl stop`.
+
+    Unlike sending the process a signal directly (e.g. `kill -15` on a PID
+    from `pidof`), this goes through supervisor itself, which is what
+    actually owns the service's running/stopped state -- supervisor's
+    autorestart can otherwise bring a killed process back before a test's
+    own check runs.
+
+    Returns {status: "Pass"/"Fail", service, output, details}. "Pass" when
+    supervisorctl reports the service as stopped.
+    """
+    cmd = f"cd {directory} && supervisorctl stop {service_name}"
+    output = run_command_on_pod(pod_connection, cmd) or ""
+    status = "Pass" if "stopped" in output.lower() else "Fail"
+    details = [f"supervisorctl stop output for '{service_name}': {output.strip()}"]
+    print(f"[ServiceStop] {service_name}: {output.strip()}")
+    return {"status": status, "service": service_name, "output": output.strip(), "details": details}
+
+
 def check_private_key_markers(pod_connection, directory="/home/ubuntu/.nddevice/certificate"):
     """Check if key files contain the 'PRIVATE' marker.
     Returns dict mapping filename to boolean.
@@ -236,8 +258,9 @@ def check_private_key_markers(pod_connection, directory="/home/ubuntu/.nddevice/
     return results
 
 
-def get_ota_version(pod_connection, directory="/home/ubuntu/.nddevice"):
+def get_ota_version(pod_connection, directory="/home/ubuntu/.nddevice", folders_only=False):
     """Detect current OTA version by listing directory for version folder or *.tar.gz.
+    If folders_only is True, *.tar.gz entries are ignored and only version folders are considered.
     Returns version string or None. (No nddevice.ini fallback)"""
     list_cmd = f"cd {directory} && ls -1"
     output = run_command_on_pod(pod_connection, list_cmd)
@@ -249,7 +272,7 @@ def get_ota_version(pod_connection, directory="/home/ubuntu/.nddevice"):
         name = line.strip()
         if version_re.match(name):
             candidates.append(name)
-        elif name.endswith('.tar.gz'):
+        elif not folders_only and name.endswith('.tar.gz'):
             base = name[:-7]
             if version_re.match(base):
                 candidates.append(base)
@@ -260,6 +283,19 @@ def get_ota_version(pod_connection, directory="/home/ubuntu/.nddevice"):
         if c not in seen:
             seen.append(c)
     return seen[0]
+
+
+def get_device_type(pod_connection, deviceconfig_path="/home/ubuntu/config/deviceconfig.ini"):
+    """Return the `devicetype` value from deviceconfig.ini, or None if not found."""
+    content = run_command_on_pod(pod_connection, f"cat {deviceconfig_path} 2>/dev/null || true")
+    for line in (content or "").splitlines():
+        line = line.strip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+        k, v = line.split('=', 1)
+        if k.strip().lower() == 'devicetype' and v.strip():
+            return v.strip()
+    return None
 
 
 def check_file_availability(pod_connection, file_path):
@@ -428,6 +464,80 @@ def get_current_session_name(pod_connection, extension=None, cam_num=None, path=
     return {"status": "Pass", "session_name": session_name, "details": details}
 
 
+def get_new_session(pod_connection, log_dir="/home/ubuntu/.nddevice/log/ndcentral"):
+    """Wait for and return the NEXT session ndcentral creates after whatever
+    session is currently the latest one.
+
+    Ported from nd_test_bot's FileUtils_obj.get_new_session, same name and
+    forward-poll mechanism (per user instruction -- kept 1:1 despite a
+    similar forward-poll approach proving unreliable in an earlier port of
+    this repo's awsiot suite, where do_vod referenced the session active
+    BEFORE the alert rather than one created after it; callers should
+    prefer device.search_log's own capture-before-the-triggering-action
+    pattern unless they specifically need this reference-faithful method).
+
+    Steps (matching the reference exactly): find the latest existing
+    session's epoch from ndcentral's "creating folder for session" lines,
+    compute when the next session is expected (assuming ~60s session
+    intervals), sleep until then, then poll once a second (up to 10
+    attempts) for a session whose epoch is newer than the original latest.
+
+    Returns {status: "Pass"/"Fail", session_name, details}.
+    """
+    import time as _time
+
+    details = []
+    grep_cmd = (
+        f'grep -h "creating folder for session" {log_dir}/log* | '
+        r'grep -oE "_trip[0-9a-zA-Z]*_part[0-9a-zA-Z]*_[0-9.]*_[0-9.]*_0\.0_[0-9]*_y" | '
+        r'grep -oE "[0-9]{13}" | sort -n | tail -1'
+    )
+
+    max_epoch_str = (run_command_on_pod(pod_connection, grep_cmd) or "").strip()
+    if not max_epoch_str:
+        details.append("No existing sessions found, waiting for first session...")
+        max_epoch = 0
+    else:
+        max_epoch = int(max_epoch_str)
+        details.append(f"Latest session epoch found: {max_epoch}")
+
+    current_epoch_str = (run_command_on_pod(pod_connection, "date +%s%3N") or "").strip()
+    try:
+        current_epoch = int(current_epoch_str)
+    except ValueError:
+        details.append(f"Could not parse current device epoch from: {current_epoch_str!r}")
+        return {"status": "Fail", "session_name": None, "details": details}
+
+    next_session_epoch = max_epoch + 60000
+    wait_ms = max(0, next_session_epoch - current_epoch)
+    wait_seconds = (wait_ms + 999) // 1000
+    details.append(f"Next session expected at epoch {next_session_epoch}; waiting {wait_seconds}s")
+    if wait_seconds > 0:
+        _time.sleep(wait_seconds)
+
+    for attempt in range(1, 11):
+        latest_epoch_str = (run_command_on_pod(pod_connection, grep_cmd) or "").strip()
+        if latest_epoch_str:
+            latest_epoch = int(latest_epoch_str)
+            if latest_epoch > max_epoch:
+                session_grep_cmd = (
+                    f'grep -h "creating folder for session" {log_dir}/log* | '
+                    f'grep "{latest_epoch}" | tail -1 | '
+                    r'grep -oE "_trip[0-9a-zA-Z]*_part[0-9a-zA-Z]*_[0-9.]*_[0-9.]*_0\.0_[0-9]*_y"'
+                )
+                new_session_name = (run_command_on_pod(pod_connection, session_grep_cmd) or "").strip()
+                if new_session_name:
+                    details.append(f"New session found: {new_session_name}")
+                    print(f"[GetNewSession] {new_session_name}: Pass")
+                    return {"status": "Pass", "session_name": new_session_name, "details": details}
+        details.append(f"Attempt {attempt}/10: no new session yet")
+        _time.sleep(1)
+
+    details.append("No new session found after waiting and polling")
+    print("[GetNewSession] No new session found: Fail")
+    return {"status": "Fail", "session_name": None, "details": details}
+
+
 def get_device_info(pod_connection, deviceconfig_path="/home/ubuntu/config/deviceconfig.ini"):
     """Retrieve device_type, device_id, ota_version.
     Args:
@@ -516,3 +626,108 @@ def get_device_info(pod_connection, deviceconfig_path="/home/ubuntu/config/devic
         'ota_version': ota_version,
         'details': details
     }
+
+
+def run_command_iteratively(pod_connection, command, iteration, timeout, not_desired_output=None, revert=False):
+    """Run `command` on the pod repeatedly until its (stripped) output is not
+    in `not_desired_output`, or `iteration` attempts are exhausted.
+
+    Ported from nd_test_bot's Calculator_obj.run_command_iteratively, same
+    name/parameter order/semantics: some checks (e.g. `ls ... | wc -l`)
+    transiently report a not-yet-ready value (like "0") that only becomes
+    the desired value once a background process (scheduler, etc.) has run.
+    `revert=True` flips the final Pass/Fail (matches the reference exactly
+    -- used by callers that expect the command's output to STAY in
+    not_desired_output, e.g. verifying a count never exceeds an allowed set).
+
+    Returns {status: "Pass"/"Fail", output, iterations_used, details}.
+    """
+    import time as _time
+
+    if not_desired_output is None:
+        not_desired_output = []
+    elif isinstance(not_desired_output, str):
+        not_desired_output = [not_desired_output]
+
+    details = []
+    output = None
+    status = "Fail"
+    for i in range(1, iteration + 1):
+        output = (run_command_on_pod(pod_connection, command) or "").strip()
+        details.append(f"Attempt {i}/{iteration}: {command!r} -> {output!r}")
+        if output not in not_desired_output:
+            status = "Pass"
+            break
+        if i < iteration:
+            _time.sleep(timeout)
+
+    if revert:
+        status = "Fail" if status == "Pass" else "Pass"
+
+    return {"status": status, "output": output, "iterations_used": i, "details": details}
+
+
+_HS_DB_VALID_SESSIONS = (
+    "health_info:cpu_info",
+    "health_info:gpu_info",
+    "health_info:free_info",
+    "health_info:process_info",
+)
+
+
+def get_hs_db_latest_entry_ts(pod_connection, session, db_path="/home/ubuntu/.nddevice/db/healthstats.db",
+                               retries=4, retry_delay=10):
+    """Get the timestamp (ms) of the latest entry for a HealthStatsManager
+    DB session, from the AH table's BODY column (a JSON array of entries,
+    each with a "timestamp" field).
+
+    Ported from nd_test_bot's Calculator_obj.get_hs_db_latest_entry_ts, same
+    retry semantics: an initial query, then up to `retries` more (`retry_delay`s
+    apart) if it keeps failing or returning empty -- up to 1 + retries total
+    attempts, since healthstats.db can be transiently locked by a concurrent
+    writer.
+
+    Returns {status: "Pass"/"Fail", timestamp, details}. "Fail" (timestamp=None)
+    when session is invalid, the DB file is missing, the query keeps failing/
+    returning empty after all retries, or the BODY JSON has no entries.
+    """
+    details = []
+    if session not in _HS_DB_VALID_SESSIONS:
+        details.append(f"Invalid session {session!r}, expected one of {_HS_DB_VALID_SESSIONS}")
+        return {"status": "Fail", "timestamp": None, "details": details}
+
+    db_check = run_command_on_pod(pod_connection, f"[ -f {db_path} ] && echo true || echo false") or ""
+    if db_check.strip() != "true":
+        details.append(f"Healthstats database file not found: {db_path}")
+        return {"status": "Fail", "timestamp": None, "details": details}
+
+    def _is_bad(s):
+        # Empty output, or sqlite3's own "Error: ..." line (e.g. "database
+        # is locked" from a concurrent writer) -- both are retriable, not
+        # valid BODY JSON.
+        return not s or s.startswith("Error:")
+
+    command = f"""sqlite3 {db_path} "SELECT BODY FROM AH WHERE SESSION = '{session}';" """
+    json_str = (run_command_on_pod(pod_connection, command) or "").strip()
+    details.append(f"Initial attempt: query -> {json_str[:200]!r}")
+    for attempt in range(1, retries + 1):
+        if not _is_bad(json_str):
+            break
+        _time.sleep(retry_delay)
+        json_str = (run_command_on_pod(pod_connection, command) or "").strip()
+        details.append(f"Retry {attempt}/{retries}: query -> {json_str[:200]!r}")
+
+    if _is_bad(json_str):
+        details.append(f"healthstats.db query failed/empty for session {session!r} after {1 + retries} attempts")
+        return {"status": "Fail", "timestamp": None, "details": details}
+
+    try:
+        data = json.loads(json_str)
+        timestamp = max(entry["timestamp"] for entry in data)
+    except (ValueError, KeyError, TypeError) as e:
+        details.append(f"Failed to parse healthstats.db BODY for session {session!r}: {e}")
+        return {"status": "Fail", "timestamp": None, "details": details}
+
+    details.append(f"Timestamp of latest entry for {session!r}: {timestamp}")
+    print(f"[HSDbLatestEntry] {session}: {timestamp}")
+    return {"status": "Pass", "timestamp": timestamp, "details": details}

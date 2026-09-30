@@ -42,8 +42,11 @@ class DeviceTest:
         self._variables: Dict[str, Any] = {}
         self._command_log: List[Dict[str, Any]] = []
 
-        self._ota_version = device_checks.get_ota_version(self._pod_connection)
+        self._ota_version = device_checks.get_ota_version(self._pod_connection, folders_only=True)
         self._variables["ota_version"] = self._ota_version
+
+        self._device_type = device_checks.get_device_type(self._pod_connection)
+        self._variables["device_type"] = self._device_type
 
     # ── Properties ─────────────────────────────────────────────────────
 
@@ -56,6 +59,11 @@ class DeviceTest:
     def ota_version(self) -> Optional[str]:
         """OTA package version detected at init (cached)."""
         return self._ota_version
+
+    @property
+    def device_type(self) -> Optional[str]:
+        """Device type from deviceconfig.ini, detected at init (cached)."""
+        return self._device_type
 
     @property
     def variables(self) -> Dict[str, Any]:
@@ -150,9 +158,10 @@ class DeviceTest:
         self._log(f"check_file_availability({file_path})", result)
         return result
 
-    def get_ota_version(self, directory: str = "/home/ubuntu/.nddevice") -> Optional[str]:
-        """Re-detect the OTA version (use the .ota_version property for the cached value)."""
-        result = device_checks.get_ota_version(self._pod_connection, directory)
+    def get_ota_version(self, directory: str = "/home/ubuntu/.nddevice", folders_only: bool = False) -> Optional[str]:
+        """Re-detect the OTA version (use the .ota_version property for the cached value).
+        folders_only=True ignores *.tar.gz packages and returns only a version folder."""
+        result = device_checks.get_ota_version(self._pod_connection, directory, folders_only)
         self._log(f"get_ota_version({directory})", result)
         return result
 
@@ -199,6 +208,12 @@ class DeviceTest:
         self._log(f"restart_service({service_name})", result)
         return result
 
+    def stop_service(self, service_name: str, directory: str = "/home/ubuntu/.nddevice/latest/service") -> Dict[str, Any]:
+        """Stop a supervisor-managed service via supervisorctl."""
+        result = device_checks.stop_service(self._pod_connection, service_name, directory)
+        self._log(f"stop_service({service_name})", result)
+        return result
+
     def get_service_pid(self, service_name: str, directory: str = "/home/ubuntu/.nddevice/latest/service") -> Dict[str, Any]:
         """Get a supervisor-managed service's PID directly from supervisorctl status."""
         result = device_checks.get_service_pid(self._pod_connection, service_name, directory)
@@ -224,10 +239,30 @@ class DeviceTest:
         self._log(f"get_current_session_name(extension={extension}, cam_num={cam_num}, path={path})", result)
         return result
 
+    def get_new_session(self, log_dir: str = "/home/ubuntu/.nddevice/log/ndcentral") -> Dict[str, Any]:
+        """Wait for and return the NEXT session ndcentral creates after the current latest one."""
+        result = device_checks.get_new_session(self._pod_connection, log_dir)
+        self._log(f"get_new_session(log_dir={log_dir})", result)
+        return result
+
     def control_api_calls(self, block_host: bool, host: str = "idms-staging.netradyne.com") -> Dict[str, Any]:
         """Block or restore device API calls to host by editing /etc/hosts on the pod."""
         result = device_checks.control_api_calls(self._pod_connection, block_host, host)
         self._log(f"control_api_calls(block_host={block_host}, host={host})", result)
+        return result
+
+    def run_command_iteratively(self, command: str, iteration: int, timeout: int,
+                                 not_desired_output=None, revert: bool = False) -> Dict[str, Any]:
+        """Run command repeatedly until its output is not in not_desired_output, or iteration attempts run out."""
+        result = device_checks.run_command_iteratively(self._pod_connection, command, iteration, timeout, not_desired_output, revert)
+        self._log(f"run_command_iteratively({command})", result.get("output"))
+        return result
+
+    def get_hs_db_latest_entry_ts(self, session: str, db_path: str = "/home/ubuntu/.nddevice/db/healthstats.db",
+                                   retries: int = 4, retry_delay: int = 10) -> Dict[str, Any]:
+        """Get the timestamp (ms) of the latest healthstats.db entry for a session (e.g. 'health_info:cpu_info')."""
+        result = device_checks.get_hs_db_latest_entry_ts(self._pod_connection, session, db_path, retries, retry_delay)
+        self._log(f"get_hs_db_latest_entry_ts({session})", result)
         return result
 
     # ── Voyager host operations ──────────────────────────────────────────

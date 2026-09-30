@@ -269,6 +269,182 @@ FUNCTIONALITY_MAP = {
     "test_awsiot_all_cameras_enabled": {
         "Configuration": ["test_step"],
     },
+
+    # ─── SCHEDULER ────────────────────────────────────────────────────
+    "test_scheduler_msgq_creation_related_services": {
+        "Msgq Creation": ["test_step"],
+    },
+    "test_scheduler_runs_wrapper_scheduler_every_min": {
+        "Scheduling Cadence": ["test_step"],
+    },
+    "test_scheduler_file_pileup": {
+        "Input/Output Handling": ["test_step"],
+    },
+    "test_scheduler_enters_file_valid_input_set": {
+        "Input/Output Handling": ["test_step"],
+    },
+    "test_scheduler_deletes_file_invalid_input_set": {
+        "Input/Output Handling": ["test_step"],
+    },
+    "test_scheduler_ndcentral_triggers_scheduler_manager": {
+        "Triggering": ["test_step"],
+    },
+    "test_scheduler_manager_triggers_scheduler": {
+        "Triggering": ["test_step"],
+    },
+    "test_scheduler_ndcentral_fails_to_trigger_scheduler": {
+        "Triggering": ["test_step"],
+    },
+    "test_scheduler_file_state_not_dnd_no_alerts": {
+        "Inertial Processing": ["test_step"],
+    },
+    "test_scheduler_complete_file_operation": {
+        "Input/Output Handling": ["test_step"],
+    },
+    "test_scheduler_inertial_starts_processing_with_valid_parameters": {
+        "Inertial Processing": ["test_step"],
+    },
+    "test_scheduler_completion_inertial_obs": {
+        "Inertial Processing": ["test_step"],
+    },
+    "test_scheduler_detailed_copy_obs_generation": {
+        "Inertial Processing": ["test_step"],
+    },
+    "test_scheduler_check_movement_of_hdfile_inertial_observation": {
+        "Inertial Processing": ["test_step"],
+    },
+    "test_scheduler_inference_move_file_delete_state": {
+        "Inference State Machine": ["test_step"],
+    },
+    "test_scheduler_inference_move_file_upload_state": {
+        "Inference State Machine": ["test_step"],
+    },
+    "test_scheduler_inference_calls_deleter_delete_state": {
+        "Inference State Machine": ["test_step"],
+    },
+    "test_scheduler_inference_calls_uploader_upload_state": {
+        "Inference State Machine": ["test_step"],
+    },
+    "test_scheduler_state_modified_vision_running_state": {
+        "Inference State Machine": ["test_step"],
+    },
+    "test_scheduler_inference_run_metadata_summary": {
+        "Vision Inference": ["test_step"],
+    },
+    "test_scheduler_starts_outward_nrt_with_valid_parameters": {
+        "Vision Inference": ["test_step"],
+    },
+    "test_scheduler_starts_inward_nrt_with_valid_parameters": {
+        "Vision Inference": ["test_step"],
+    },
+    "test_scheduler_session_nrt_completion_status": {
+        "Vision Inference": ["test_step"],
+    },
+    "test_scheduler_analysis_result_outward_inward_nrt": {
+        "Vision Inference": ["test_step"],
+    },
+    "test_scheduler_inference_updates_collated_alerts": {
+        "Inference State Machine": ["test_step"],
+    },
+    "test_scheduler_uploader_modifies_state_job_submit_state": {
+        "Uploader Workflow": ["test_step"],
+    },
+    "test_scheduler_uploader_engine_workflow": {
+        "Uploader Workflow": ["test_step"],
+    },
+    "test_scheduler_latency_check_without_alert": {
+        "Latency": ["test_step"],
+    },
+    "test_scheduler_latency_check_incase_alert": {
+        "Latency": ["test_step"],
+    },
+    "test_scheduler_deleter_checks_delete_state": {
+        "Inference State Machine": ["test_step"],
+    },
+    "test_scheduler_deleters_deletes_nd_output_nd_input_files": {
+        "Deleter": ["test_step"],
+    },
+    "test_scheduler_deletes_all_file_previous_session": {
+        "Deleter": ["test_step"],
+    },
+    "test_scheduler_processed_file_written_to_disk": {
+        "Input/Output Handling": ["test_step"],
+    },
+    "test_scheduler_file_locking_behaviour": {
+        "Input/Output Handling": ["test_step"],
+    },
+    "test_scheduler_wrapper_otacheck_crontab": {
+        "Crontab": ["test_step"],
+    },
+    "test_scheduler_wrapper_cleanupstate_crontab": {
+        "Crontab": ["test_step"],
+    },
+    "test_scheduler_wrapper_scheduler_removed_from_user_crontab": {
+        "Crontab": ["test_step"],
+    },
+    "test_scheduler_wrapper_otacheck_removed_user_crontab": {
+        "Crontab": ["test_step"],
+    },
+    "test_scheduler_folder_permission_nd_output": {
+        "Input/Output Handling": ["test_step"],
+    },
+    "test_scheduler_deletes_folder_root_permission_in_ndoutput": {
+        "Deleter": ["test_step"],
+    },
+    "test_scheduler_state_files_new_session": {
+        "Input/Output Handling": ["test_step"],
+    },
+    "test_scheduler_deletes_multiple_files": {
+        "Deleter": ["test_step"],
+    },
+    "test_scheduler_healthstats_network_info": {
+        "HealthStats": ["test_step"],
+    },
+    "test_scheduler_healthstats_signal_info": {
+        "HealthStats": ["test_step"],
+    },
+    "test_scheduler_ndcentral_recording_start_end_to_hs": {
+        "HealthStats": ["test_step"],
+    },
+    "test_scheduler_ndcentral_partial_file_recording_start_end_to_hs": {
+        "HealthStats": ["test_step"],
+    },
+    "test_scheduler_fields_updated_each_session_in_hs": {
+        "HealthStats": ["test_step"],
+    },
+    "test_scheduler_no_traceback": {
+        "Reliability": ["test_step"],
+    },
+    "test_scheduler_logs_writing_and_logs_uploading": {
+        "Logging": ["test_step"],
+    },
+    "test_scheduler_log_format_related_files": {
+        "Logging": ["test_step"],
+    },
+    "test_scheduler_partial_file_process_linux_sign_crash": {
+        "Reliability": ["test_step"],
+    },
+    "test_scheduler_queue_overflow_more_files_run_state": {
+        "Queue Overflow": ["test_step"],
+    },
+    "test_scheduler_oldest_file_dropped_first_queue_overflow": {
+        "Queue Overflow": ["test_step"],
+    },
+    "test_scheduler_queue_every_min": {
+        "Queue Overflow": ["test_step"],
+    },
+    "test_scheduler_not_crashing_during_queue_overflow": {
+        "Queue Overflow": ["test_step"],
+    },
+    "test_scheduler_no_attribute_error": {
+        "Reliability": ["test_step"],
+    },
+    "test_scheduler_partial_file_process_backtoback_restart_bagheera": {
+        "Reliability": ["test_step"],
+    },
+    "test_scheduler_no_pileup_deleter": {
+        "Deleter": ["test_step"],
+    },
 }
 
 
@@ -335,6 +511,64 @@ SERVICE_DISPLAY_NAMES = {
     "test_awsiot_verify_publish_enabled": "AWSIOT",
     "test_awsiot_verify_gps_publish_frequency": "AWSIOT",
     "test_awsiot_all_cameras_enabled": "AWSIOT",
+    "test_scheduler_msgq_creation_related_services": "SCHEDULER",
+    "test_scheduler_runs_wrapper_scheduler_every_min": "SCHEDULER",
+    "test_scheduler_file_pileup": "SCHEDULER",
+    "test_scheduler_enters_file_valid_input_set": "SCHEDULER",
+    "test_scheduler_deletes_file_invalid_input_set": "SCHEDULER",
+    "test_scheduler_ndcentral_triggers_scheduler_manager": "SCHEDULER",
+    "test_scheduler_manager_triggers_scheduler": "SCHEDULER",
+    "test_scheduler_ndcentral_fails_to_trigger_scheduler": "SCHEDULER",
+    "test_scheduler_file_state_not_dnd_no_alerts": "SCHEDULER",
+    "test_scheduler_complete_file_operation": "SCHEDULER",
+    "test_scheduler_inertial_starts_processing_with_valid_parameters": "SCHEDULER",
+    "test_scheduler_completion_inertial_obs": "SCHEDULER",
+    "test_scheduler_detailed_copy_obs_generation": "SCHEDULER",
+    "test_scheduler_check_movement_of_hdfile_inertial_observation": "SCHEDULER",
+    "test_scheduler_inference_move_file_delete_state": "SCHEDULER",
+    "test_scheduler_inference_move_file_upload_state": "SCHEDULER",
+    "test_scheduler_inference_calls_deleter_delete_state": "SCHEDULER",
+    "test_scheduler_inference_calls_uploader_upload_state": "SCHEDULER",
+    "test_scheduler_state_modified_vision_running_state": "SCHEDULER",
+    "test_scheduler_inference_run_metadata_summary": "SCHEDULER",
+    "test_scheduler_starts_outward_nrt_with_valid_parameters": "SCHEDULER",
+    "test_scheduler_starts_inward_nrt_with_valid_parameters": "SCHEDULER",
+    "test_scheduler_session_nrt_completion_status": "SCHEDULER",
+    "test_scheduler_analysis_result_outward_inward_nrt": "SCHEDULER",
+    "test_scheduler_inference_updates_collated_alerts": "SCHEDULER",
+    "test_scheduler_uploader_modifies_state_job_submit_state": "SCHEDULER",
+    "test_scheduler_uploader_engine_workflow": "SCHEDULER",
+    "test_scheduler_latency_check_without_alert": "SCHEDULER",
+    "test_scheduler_latency_check_incase_alert": "SCHEDULER",
+    "test_scheduler_deleter_checks_delete_state": "SCHEDULER",
+    "test_scheduler_deleters_deletes_nd_output_nd_input_files": "SCHEDULER",
+    "test_scheduler_deletes_all_file_previous_session": "SCHEDULER",
+    "test_scheduler_processed_file_written_to_disk": "SCHEDULER",
+    "test_scheduler_file_locking_behaviour": "SCHEDULER",
+    "test_scheduler_wrapper_otacheck_crontab": "SCHEDULER",
+    "test_scheduler_wrapper_cleanupstate_crontab": "SCHEDULER",
+    "test_scheduler_wrapper_scheduler_removed_from_user_crontab": "SCHEDULER",
+    "test_scheduler_wrapper_otacheck_removed_user_crontab": "SCHEDULER",
+    "test_scheduler_folder_permission_nd_output": "SCHEDULER",
+    "test_scheduler_deletes_folder_root_permission_in_ndoutput": "SCHEDULER",
+    "test_scheduler_state_files_new_session": "SCHEDULER",
+    "test_scheduler_deletes_multiple_files": "SCHEDULER",
+    "test_scheduler_healthstats_network_info": "SCHEDULER",
+    "test_scheduler_healthstats_signal_info": "SCHEDULER",
+    "test_scheduler_ndcentral_recording_start_end_to_hs": "SCHEDULER",
+    "test_scheduler_ndcentral_partial_file_recording_start_end_to_hs": "SCHEDULER",
+    "test_scheduler_fields_updated_each_session_in_hs": "SCHEDULER",
+    "test_scheduler_no_traceback": "SCHEDULER",
+    "test_scheduler_logs_writing_and_logs_uploading": "SCHEDULER",
+    "test_scheduler_log_format_related_files": "SCHEDULER",
+    "test_scheduler_partial_file_process_linux_sign_crash": "SCHEDULER",
+    "test_scheduler_queue_overflow_more_files_run_state": "SCHEDULER",
+    "test_scheduler_oldest_file_dropped_first_queue_overflow": "SCHEDULER",
+    "test_scheduler_queue_every_min": "SCHEDULER",
+    "test_scheduler_not_crashing_during_queue_overflow": "SCHEDULER",
+    "test_scheduler_no_attribute_error": "SCHEDULER",
+    "test_scheduler_partial_file_process_backtoback_restart_bagheera": "SCHEDULER",
+    "test_scheduler_no_pileup_deleter": "SCHEDULER",
 }
 
 

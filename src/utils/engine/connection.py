@@ -80,12 +80,12 @@ def run_command_on_pod(child, cmd: str, directory: str = None, timeout: int = 30
     logger.info(f"Output:\n{output}")
     return output if output else None
 
-def reboot_voyager():
+def reboot_voyager(ip_address: str = voyager_ip):
     """Reboot the pod before tests in this module."""
     print("\n[Setup] Rebooting pod before tests...")
-    run_command_on_voyager(cmd="sudo reboot")
+    run_command_on_voyager(ip_address=ip_address, cmd="sudo reboot")
     # wait for voyager to come back up
-    wait_for_ping(timeout=180, interval=5)
+    wait_for_ping(ip=ip_address, timeout=180, interval=5)
 
     # wait until the pod is initialized
     time.sleep(240)
