@@ -47,6 +47,11 @@ DEVICE_API: dict[str, dict[str, str]] = {
         "returns": "bool",
         "description": "Check if the pod session is alive",
     },
+    "user_alert_generated": {
+        "signature": "output",
+        "returns": "bool",
+        "description": "True if gen_ualert.sh output confirms the alert was generated (old or new OTA message)",
+    },
     "close": {
         "signature": "",
         "returns": "None",

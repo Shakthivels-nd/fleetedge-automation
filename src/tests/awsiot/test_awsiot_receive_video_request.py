@@ -21,7 +21,7 @@ def test_step2_push_alert(device):
     """STEP_1 — Push alert to trigger VOD."""
     device.variables["search_start_ts"] = device.get_current_time_epoch()["epoch_ms"]
     output = device.run("./gen_ualert.sh", "/home/ubuntu/.nddevice/latest/service/bagheera")
-    assert output and "User alert is generated..!!!" in output, f"Failed to generate user alert: {output}"
+    assert device.user_alert_generated(output), f"Failed to generate user alert: {output}"
 
 
 def test_step3_wait(device):
