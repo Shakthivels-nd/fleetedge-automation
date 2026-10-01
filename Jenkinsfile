@@ -1,11 +1,7 @@
-// FleetEdge automation -- parameterised pytest run, triggerable remotely:
-//   curl -u USER:API_TOKEN -X POST "http://10.200.8.71:8080/job/<JOB>/buildWithParameters" \
-//        --data-urlencode SERVICES="scheduler,btfv" \
-//        --data-urlencode DEVICE_IP=10.x.x.x --data-urlencode SKIP_REBOOT=true
+// FleetEdge automation 
 //
 // Prerequisites on Jenkins:
-//   * Secret-file credential "fe-env-file" holding the contents of .env
-//     (DB_*, IDMS_*, HOST*, JIRA_* ...). DEVICE_ID/DEVICE_IP/etc. below override it.
+//   * No .env needed: device id/ip, OTA version and environment come from the build parameters.
 //   * An agent labelled "deviceqa-laptop-2" with python3 + venv that can reach the device.
 pipeline {
     agent { label params.AGENT_LABEL ?: 'deviceqa-laptop-2' }
@@ -21,9 +17,9 @@ pipeline {
         string(name: 'AGENT_LABEL', defaultValue: 'deviceqa-laptop-2', description: 'Jenkins agent label (must have network access to the device)')
         string(name: 'BRANCH', defaultValue: 'main', description: 'Git branch to test')
         string(name: 'SERVICES', defaultValue: '', description: 'Comma separated services to test, e.g. "scheduler,awsiot" (folder names under src/tests). Blank = all services')
-        string(name: 'DEVICE_ID', defaultValue: '', description: 'Device ID under test (blank = value from .env)')
-        string(name: 'DEVICE_IP', defaultValue: '', description: 'Device IP under test (blank = value from .env)')
-        string(name: 'OTA_VERSION', defaultValue: '', description: 'OTA version being tested (blank = value from .env)')
+        string(name: 'DEVICE_ID', defaultValue: '', description: 'Device ID under test (required)')
+        string(name: 'DEVICE_IP', defaultValue: '', description: 'Device IP under test (required)')
+        string(name: 'OTA_VERSION', defaultValue: '', description: 'OTA version being tested (required)')
         choice(name: 'ENVIRONMENT', choices: ['Staging', 'Prod'], description: 'Target environment')
         booleanParam(name: 'SKIP_REBOOT', defaultValue: false, description: 'Pass --skip-reboot (skips ~10 min voyager reboot + DRIVE mode setup)')
     }
@@ -38,23 +34,19 @@ pipeline {
                 checkout([$class: 'GitSCM',
                           branches: [[name: "*/${params.BRANCH}"]],
                           userRemoteConfigs: scm.userRemoteConfigs])
-                script { currentBuild.description = "${params.BRANCH} | ${params.SERVICES ?: 'all'} | ${params.DEVICE_IP ?: 'env-ip'}" }
+                script { currentBuild.description = "${params.BRANCH} | ${params.SERVICES ?: 'all'} | ${params.DEVICE_IP ?: 'n/a'}" }
             }
         }
 
         stage('Setup') {
             steps {
-                withCredentials([file(credentialsId: 'fe-env-file', variable: 'FE_ENV_FILE')]) {
-                    sh '''
-                        set -e
-                        cp "$FE_ENV_FILE" .env
-                        chmod 600 .env
-                        python3 -m venv .venv
-                        . .venv/bin/activate
-                        pip install -q --upgrade pip
-                        pip install -q -r requirements.txt
-                    '''
-                }
+                sh '''
+                    set -e
+                    python3 -m venv .venv
+                    . .venv/bin/activate
+                    pip install -q --upgrade pip
+                    pip install -q -r requirements.txt
+                '''
             }
         }
 
@@ -71,6 +63,10 @@ pipeline {
                 ]) {
                     sh '''
                         . .venv/bin/activate
+                        [ -n "$P_ID" ]  && export DEVICE_ID="$P_ID"
+                        [ -n "$P_IP" ]  && export DEVICE_IP="$P_IP"
+                        [ -n "$P_OTA" ] && export OTA_VERSION="$P_OTA"
+                        export ENVIRONMENT="$P_ENV"
                         args=()
                         [ -n "$P_ID" ]   && args+=(--device-id "$P_ID")
                         [ -n "$P_IP" ]   && args+=(--device-ip "$P_IP")
@@ -104,7 +100,6 @@ pipeline {
                 reportDir: 'src/reports', reportFiles: 'live_report.html',
                 reportName: 'Test_report', keepAll: true, allowMissing: true, alwaysLinkToLastBuild: true
             ])
-            sh 'rm -f .env'
         }
     }
 }
