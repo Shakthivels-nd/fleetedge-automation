@@ -68,7 +68,7 @@ pipeline {
         }
 
         stage('Run tests') {
-            steps {
+            steps { script {
                 // Parameters go through env vars (not Groovy interpolation) to avoid shell injection.
                 withEnv([
                     "P_SERVICES=${params.SERVICES}",
@@ -78,7 +78,7 @@ pipeline {
                     "P_ENV=${params.ENVIRONMENT}",
                     "P_SKIP=${params.SKIP_REBOOT}",
                 ]) {
-                    sh '''
+                    def rc = sh(returnStatus: true, script: '''
                         . .venv/bin/activate
                         [ -n "$P_ID" ]  && export DEVICE_ID="$P_ID"
                         [ -n "$P_IP" ]  && export DEVICE_IP="$P_IP"
@@ -102,12 +102,23 @@ pipeline {
                             paths+=("$dir")
                         done
                         [ ${#paths[@]} -eq 0 ] && paths=(src/tests)
-                        # Keep the stage red on test failures but still publish reports.
                         python -m pytest "${paths[@]}" "${args[@]}" 2>&1 | tee pytest.log
                         exit ${PIPESTATUS[0]}
-                    '''
+                    ''')
+                    // Red (FAILURE) only when no test actually ran (setup/connection errors, bad service
+                    // name, crash, nothing collected). If at least one test passed or failed, the suite ran:
+                    // all passed -> SUCCESS, some failed -> UNSTABLE (yellow), details in Test_report.
+                    def testsRan = sh(returnStatus: true,
+                        script: "tail -n 1 pytest.log | grep -Eq '[0-9]+ (passed|failed)'") == 0
+                    if (rc == 0) {
+                        // all passed
+                    } else if (testsRan) {
+                        unstable('Some tests failed - see Test_report')
+                    } else {
+                        error("No tests ran (pytest exit code ${rc}) - check the console log")
+                    }
                 }
-            }
+            } }
         }
     }
 
