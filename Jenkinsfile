@@ -50,6 +50,23 @@ pipeline {
             }
         }
 
+        stage('Trust device SSH key') {
+            when { expression { params.DEVICE_IP?.trim() } }
+            steps {
+                // The tests ssh to the pod non-interactively (sshpass), so the agent user must already
+                // know the pod's host key. Add it once; keeps host-key checking on.
+                withEnv(["P_IP=${params.DEVICE_IP.trim()}"]) {
+                    sh '''
+                        mkdir -p ~/.ssh && chmod 700 ~/.ssh
+                        touch ~/.ssh/known_hosts && chmod 600 ~/.ssh/known_hosts
+                        if ! ssh-keygen -F "$P_IP" >/dev/null 2>&1; then
+                            ssh-keyscan -T 10 -H "$P_IP" >> ~/.ssh/known_hosts
+                        fi
+                    '''
+                }
+            }
+        }
+
         stage('Run tests') {
             steps {
                 // Parameters go through env vars (not Groovy interpolation) to avoid shell injection.
