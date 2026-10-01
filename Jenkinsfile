@@ -16,7 +16,7 @@ pipeline {
     parameters {
         string(name: 'AGENT_LABEL', defaultValue: 'deviceqa-laptop-2', description: 'Jenkins agent label (must have network access to the device)')
         string(name: 'BRANCH', defaultValue: 'main', description: 'Git branch to test')
-        string(name: 'SERVICES', defaultValue: '', description: 'Comma separated services to test, e.g. "scheduler,awsiot" (folder names under src/tests). Blank = all services')
+        string(name: 'SERVICES', defaultValue: '', description: 'Comma separated services to test, e.g. "scheduler,awsiot" (folder names under src/tests, or "sanity" for the sanity file). Blank = all')
         string(name: 'DEVICE_ID', defaultValue: '', description: 'Device ID under test (required)')
         string(name: 'DEVICE_IP', defaultValue: '', description: 'Device IP under test (required)')
         string(name: 'OTA_VERSION', defaultValue: '', description: 'OTA version being tested (required)')
@@ -79,6 +79,7 @@ pipeline {
                         for svc in "${svcs[@]}"; do
                             svc=$(echo "$svc" | xargs)
                             [ -z "$svc" ] && continue
+                            if [ "${svc,,}" = "sanity" ]; then paths+=(src/tests/test_sanity_functions.py); continue; fi
                             dir=$(find src/tests -maxdepth 1 -mindepth 1 -type d -iname "$svc" | head -n1)
                             [ -z "$dir" ] && { echo "Unknown service '$svc'. Available:"; ls -d src/tests/*/ | xargs -n1 basename; exit 2; }
                             paths+=("$dir")
