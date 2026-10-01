@@ -503,7 +503,7 @@ def test_api_call_upload_keep_alive_itn2639(device):
     device_id = info['device_id']; device_type = info['device_type']
     assert device_id and device_type, f"Missing device metadata: {info['details']}"
 
-    ota_version = device.get_ota_version()
+    ota_version = device.get_ota_version(folders_only=True)
     assert ota_version, "OTA Version not found"
 
     api_substring = f"/api/v1/keep-alive/{device_type}/{device_id}/{ota_version}"
@@ -525,7 +525,7 @@ def test_api_call_version_check_itn2633(device):
     """Verify version check API call happens every 10 minutes"""
     markers = device.check_private_key_markers()
     assert all(markers.values()), f"One or more key files missing PRIVATE marker: {markers}"
-    ota_version = device.get_ota_version()
+    ota_version = device.get_ota_version(folders_only=True)
     assert ota_version, "OTA version not detected"
     api_pattern = f"/api/v1/versioncheck/{ota_version}"
 

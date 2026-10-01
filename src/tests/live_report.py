@@ -96,6 +96,8 @@ class LiveReportPlugin:
         # is available — see pytest_runtest_makereport's "setup" branch below.
         self._ota_version = config.getoption("--ota-version") if config else "N/A"
         self._ota_version_from_device = False
+        # Read from deviceconfig.ini on the pod via device.device_type.
+        self._device_type = "N/A"
         # device.command_log is one growing list shared by every test in the
         # session (the `device` fixture is session-scoped, see conftest.py),
         # so it's never cleared between tests. Without tracking where each
@@ -146,6 +148,8 @@ class LiveReportPlugin:
                 if live_version:
                     self._ota_version = live_version
                     self._ota_version_from_device = True
+            if device is not None and self._device_type == "N/A":
+                self._device_type = getattr(device, "device_type", None) or "N/A"
             return
 
         if call.when != "call":
@@ -235,6 +239,12 @@ class LiveReportPlugin:
         A file where even one test doesn't match test_stepN_ is left alone —
         every one of its tests stays its own top-level row, same as before
         this grouping was added (e.g. test_sanity_functions.py's itnNNNN tests).
+
+        This includes files with only a single test_stepN_ function (e.g. a
+        one-step scheduler test) -- without the >1 check removed here, such a
+        file would fall through to the ungrouped branch and its row would be
+        labeled with the literal function name (e.g. "test_step1_verify_...")
+        instead of the descriptive filename every other test case is shown by.
         """
         by_module: Dict[str, List[Dict[str, Any]]] = {}
         order: List[str] = []
@@ -248,9 +258,7 @@ class LiveReportPlugin:
         cases: List[Dict[str, Any]] = []
         for key in order:
             module_results = by_module[key]
-            is_stepwise = len(module_results) > 1 and all(
-                STEP_NAME_PATTERN.match(r["test_id"]) for r in module_results
-            )
+            is_stepwise = all(STEP_NAME_PATTERN.match(r["test_id"]) for r in module_results)
             if not is_stepwise:
                 cases.extend(module_results)
                 continue
@@ -617,6 +625,49 @@ class LiveReportPlugin:
 </div>
 """
 
+    def _render_service_tab(self, results: List[Dict[str, Any]]) -> str:
+        services: Dict[str, List[Dict[str, Any]]] = {}
+        for r in results:
+            services.setdefault(r.get("service", "Other"), []).append(r)
+
+        rows = ""
+        for svc_name in sorted(services.keys()):
+            svc_results = services[svc_name]
+            total = len(svc_results)
+            passed = sum(1 for r in svc_results if r["verdict"] == "PASS")
+            failed = sum(1 for r in svc_results if r["verdict"] in ("FAIL", "ERROR"))
+            na = sum(1 for r in svc_results if r["verdict"] == "SKIP")
+            pct = passed / total * 100 if total else 0
+            bar_color = "#16a34a" if pct == 100 else ("#dc2626" if pct < 50 else "#ea580c")
+            rows += (
+                f'<tr>'
+                f'<td style="font-weight:700">{self._esc(svc_name)}</td>'
+                f'<td style="text-align:right">{total}</td>'
+                f'<td style="text-align:right;color:#16a34a;font-weight:700">{passed}</td>'
+                f'<td style="text-align:right;color:#dc2626;font-weight:700">{failed}</td>'
+                f'<td style="text-align:right">{na}</td>'
+                f'<td style="min-width:160px"><div class="svc-bar"><div class="svc-bar-fill" '
+                f'style="width:{pct:.0f}%;background:{bar_color}"></div>'
+                f'<span class="svc-bar-label">{pct:.0f}%</span></div></td>'
+                f'</tr>'
+            )
+        if not rows:
+            rows = '<tr><td colspan="6" class="no-cmds">No results yet.</td></tr>'
+
+        return f"""
+<div class="card">
+  <div class="card-h">Results by service</div>
+  <div class="card-b" style="padding:0">
+    <div class="scroll-table">
+      <table>
+        <tr><th>Service</th><th style="text-align:right">Total</th><th style="text-align:right">Pass</th><th style="text-align:right">Fail</th><th style="text-align:right">NA</th><th>Pass %</th></tr>
+        {rows}
+      </table>
+    </div>
+  </div>
+</div>
+"""
+
     def _render_device_tab(self, results: List[Dict[str, Any]]) -> str:
         total = len(results)
         passed = sum(1 for r in results if r["verdict"] == "PASS")
@@ -627,10 +678,11 @@ class LiveReportPlugin:
 <div class="card" style="margin-bottom:14px">
   <div class="card-h">Device under test</div>
   <div class="card-b" style="padding:0"><div class="scroll-table"><table>
-    <tr><th>Device ID</th><th>Device IP</th><th>OTA Version</th><th>Total</th><th>Pass</th><th>Fail</th><th>Skip</th></tr>
+    <tr><th>Device ID</th><th>Device IP</th><th>Device Type</th><th>OTA Version</th><th>Total</th><th>Pass</th><th>Fail</th><th>Skip</th></tr>
     <tr>
       <td>{self._esc(self._device_id)}</td>
       <td>{self._esc(self._device_ip)}</td>
+      <td>{self._esc(self._device_type)}</td>
       <td>{self._esc(self._ota_version)}</td>
       <td>{total}</td>
       <td><span class="badge-pass">{passed}</span></td>
@@ -678,6 +730,7 @@ class LiveReportPlugin:
         coverage_html = self._render_coverage_tab(results)
         all_tests_html = self._render_all_tests_tab(results)
         device_html = self._render_device_tab(results)
+        service_html = self._render_service_tab(results)
 
         refresh_meta = "" if final else '<meta http-equiv="refresh" content="10">'
 
@@ -714,6 +767,7 @@ class LiveReportPlugin:
   <button class="tab-btn" data-tab="coverage" onclick="switchTab('coverage')">Coverage</button>
   <button class="tab-btn" data-tab="alltests" onclick="switchTab('alltests')">All Tests<span class="cnt">{total}</span></button>
   <button class="tab-btn" data-tab="device" onclick="switchTab('device')">Device Tables</button>
+  <button class="tab-btn" data-tab="service" onclick="switchTab('service')">Results by Service</button>
 </div>
 <div class="tab-wrap">
   <div id="tab-overview" class="tab-content active">{overview_html}</div>
@@ -721,6 +775,7 @@ class LiveReportPlugin:
   <div id="tab-coverage" class="tab-content">{coverage_html}</div>
   <div id="tab-alltests" class="tab-content">{all_tests_html}</div>
   <div id="tab-device" class="tab-content">{device_html}</div>
+  <div id="tab-service" class="tab-content">{service_html}</div>
 </div>
 <script>
 {_JS}
@@ -781,6 +836,9 @@ body { font-family: -apple-system, Segoe UI, Helvetica, Arial, sans-serif; margi
 .func-rate-fill { height: 100%; border-radius: 6px; }
 .func-rate-pct { width: 110px; font-size: 11.5px; text-align: right; flex-shrink: 0; }
 
+.svc-bar { position: relative; height: 16px; background: #eef2f7; border-radius: 8px; overflow: hidden; }
+.svc-bar-fill { height: 100%; }
+.svc-bar-label { position: absolute; right: 8px; top: 0; font-size: 11px; font-weight: 700; line-height: 16px; color: #1a1a1a; }
 .toolbar { display: flex; gap: 8px; padding: 0 0 12px; }
 .toolbar input, .toolbar select { padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; }
 .toolbar input { flex: 1; max-width: 320px; }

@@ -63,6 +63,7 @@ def run_command_on_pod(child, cmd: str, directory: str = None, timeout: int = 30
         child.expect([r'[#\$] ', pexpect.EOF, pexpect.TIMEOUT], timeout=timeout)
     except pexpect.TIMEOUT:
         logger.error(f"Command timed out: {full_cmd}")
+        _recover_shell(child)
         return ""
     output_lines = child.before.splitlines()
 
@@ -80,12 +81,26 @@ def run_command_on_pod(child, cmd: str, directory: str = None, timeout: int = 30
     logger.info(f"Output:\n{output}")
     return output if output else None
 
-def reboot_voyager():
+def _recover_shell(child, attempts: int = 3):
+    """Interrupt whatever is still running in the foreground (e.g. a timed-out
+    `tail -F ... | grep -m1`) and wait for the prompt, so it cannot keep
+    writing into later commands' output or swallow their input."""
+    for _ in range(attempts):
+        child.sendintr()
+        try:
+            child.expect([r'[#\$] '], timeout=10)
+            return
+        except (pexpect.TIMEOUT, pexpect.EOF):
+            continue
+    logger.error("Could not regain shell prompt after command timeout")
+
+
+def reboot_voyager(ip_address: str = voyager_ip):
     """Reboot the pod before tests in this module."""
     print("\n[Setup] Rebooting pod before tests...")
-    run_command_on_voyager(cmd="sudo reboot")
+    run_command_on_voyager(ip_address=ip_address, cmd="sudo reboot")
     # wait for voyager to come back up
-    wait_for_ping(timeout=180, interval=5)
+    wait_for_ping(ip=ip_address, timeout=180, interval=5)
 
     # wait until the pod is initialized
     time.sleep(240)
@@ -133,6 +148,9 @@ def clean_output(output: str) -> str:
     # Remove ANSI escape sequences (colors, cursor moves, etc.)
     ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
     output = ansi_escape.sub('', output)
+
+    # Remove stray `tail -F` rotation notices that leak in from background tails
+    output = re.sub(r"^tail: .*(?:has become inaccessible|has appeared|cannot open).*$", "", output, flags=re.MULTILINE)
 
     # Remove shell prompt lines (root@..., ubuntu@..oot., etc.)
     prompt_pattern = re.compile(r'\b(?:oot@|netradyne-|homeroot|root@)[^\n]*', re.IGNORECASE)

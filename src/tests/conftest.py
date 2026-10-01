@@ -10,6 +10,17 @@ from src.utils.device_test import DeviceTest
 pytest_plugins = ["src.tests.live_report"]
 
 
+def _resolve_device_ip(request):
+    """Get the device IP to connect to from --device-ip/DEVICE_IP, falling
+    back to connection.voyager_ip's hardcoded default when unset (its
+    pytest_addoption default is the literal string "Unknown" when DEVICE_IP
+    isn't in the environment -- that must never be used as an actual IP)."""
+    device_ip = request.config.getoption("--device-ip")
+    if not device_ip or device_ip == "Unknown":
+        return connection.voyager_ip
+    return device_ip
+
+
 @pytest.fixture(scope="session", autouse=True)
 def reboot_voyager_fixture(request):
     """
@@ -32,17 +43,25 @@ def reboot_voyager_fixture(request):
         yield
         return
 
-    connection.reboot_voyager()
+    device_ip = _resolve_device_ip(request)
+    connection.reboot_voyager(ip_address=device_ip)
     # Set the voyager to DRIVE mode
-    connection.run_command_on_voyager(cmd='redis-cli xadd fe-vehicle-telemetry "*" json "{\"eventType\":\"prnd\", \"value\":\"DRIVE\", \"timestampMs\":\"1728479511759\"}"')
+    connection.run_command_on_voyager(ip_address=device_ip, cmd='redis-cli xadd fe-vehicle-telemetry "*" json "{\"eventType\":\"prnd\", \"value\":\"DRIVE\", \"timestampMs\":\"1728479511759\"}"')
     yield
     # No teardown needed
 
 
 @pytest.fixture(scope="session")
-def pod_connection():
-    """Fixture to set up and tear down the pod connection, shared for the whole session."""
-    child = connection.connect_to_pod()
+def pod_connection(request):
+    """Fixture to set up and tear down the pod connection, shared for the whole session.
+
+    Reads --device-ip (defaulting to the DEVICE_IP env var via
+    pytest_addoption) so changing DEVICE_ID/DEVICE_IP in .env or via CLI
+    actually changes which device gets connected to -- connect_to_pod's own
+    default (connection.voyager_ip) is a hardcoded fallback, not env-aware.
+    """
+    device_ip = _resolve_device_ip(request)
+    child = connection.connect_to_pod(ip_address=device_ip)
     yield child
     connection.close_pod_connection(child)
 

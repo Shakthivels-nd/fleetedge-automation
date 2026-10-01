@@ -151,10 +151,20 @@ DEVICE_API: dict[str, dict[str, str]] = {
         "returns": "dict",
         "description": "Find the most recently modified session's filename in path (ls -t + trip/part pattern match); {status, session_name, details}",
     },
+    "get_new_session": {
+        "signature": 'log_dir="/home/ubuntu/.nddevice/log/ndcentral"',
+        "returns": "dict",
+        "description": "Wait for and return the NEXT session ndcentral creates after the current latest one (ported from nd_test_bot's FileUtils_obj.get_new_session, same forward-poll mechanism); {status, session_name, details}",
+    },
     "control_api_calls": {
         "signature": 'block_host, host="idms-staging.netradyne.com"',
         "returns": "dict",
         "description": "Block/restore device API calls to host via /etc/hosts loopback redirect; {status, host, details}",
+    },
+    "run_command_iteratively": {
+        "signature": "command, iteration, timeout, not_desired_output=None, revert=False",
+        "returns": "dict",
+        "description": "Run command repeatedly until its output is not in not_desired_output or iteration attempts run out (ported from nd_test_bot's Calculator_obj.run_command_iteratively); {status, output, iterations_used, details}",
     },
 
     # ── Voyager host operations ──────────────────────────────────────────
