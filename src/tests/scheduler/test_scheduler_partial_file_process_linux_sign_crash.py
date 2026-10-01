@@ -27,9 +27,9 @@ def test_step1_verify_bagheera_active(device):
 def test_step2_capture_session_name(device):
     """STEP_1 — Capture the current session name."""
     cmd = (
-        "tail -F /home/ubuntu/.nddevice/log/ndcentral/* | "
+        "( timeout 170 tail -F /home/ubuntu/.nddevice/log/ndcentral/* 2>/dev/null | "
         "grep --line-buffered -m 1 'creating folder for session' | "
-        "awk -F'creating folder for session ' '{print $2}' | awk '{print $1}'"
+        "awk -F'creating folder for session ' '{print $2}' | awk '{print $1}' ) 2>/dev/null"
     )
     output = device.run(cmd, timeout=180)
     session_name = (output or "").strip()
