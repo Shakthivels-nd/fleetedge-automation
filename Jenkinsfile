@@ -8,7 +8,6 @@ pipeline {
 
     options {
         timestamps()
-        timeout(time: 8, unit: 'HOURS')
         buildDiscarder(logRotator(numToKeepStr: '30'))
         disableConcurrentBuilds()   // one device == one run at a time
     }
