@@ -19,16 +19,23 @@ Description:
   yet confirmed on FE) need a live check before this test is trusted.
 """
 
+import calendar
+import re
 import time
 
 
-def test_step1_verify_bagheera_active(device):
+def test_step1_wait_before_start(device):
+    """PreCondition_1 — Wait 10s."""
+    time.sleep(10)
+
+
+def test_step2_verify_bagheera_active(device):
     """PreCondition_2 — Verify bagheera service is RUNNING."""
     result = device.is_service_active("bagheera")
     assert result["status"] == "Pass", f"bagheera is not RUNNING: {result['state']}"
 
 
-def test_step2_capture_session_name(device):
+def test_step3_capture_session_name(device):
     """STEP_1 — Capture the current session name (before pushing the alert)."""
     cmd = (
         "( timeout 170 tail -F /home/ubuntu/.nddevice/log/ndcentral/* 2>/dev/null | "
@@ -41,24 +48,51 @@ def test_step2_capture_session_name(device):
     device.variables["session_name"] = session_name
 
 
-def test_step3_push_alert(device):
+def test_step4_wait_before_alert(device):
+    """STEP_2 — Wait 10s before pushing the alert."""
+    time.sleep(10)
+
+
+def test_step5_push_alert(device):
     """STEP_3 — Push alert to device."""
+    # Device-clock epoch (s) just before the alert; scheduler_manager lines carry no timestamp
+    # of their own, so step 7 compares the date inside "Wrapper_scheduler with time = ..." to it.
+    now_out = device.run("date -u +%s") or ""
+    match = re.search(r"\b\d{10}\b", now_out)
+    assert match, f"Could not read device time: {now_out!r}"
+    device.variables["alert_start_epoch"] = int(match.group(0))
     output = device.run("./gen_ualert.sh", "/home/ubuntu/.nddevice/latest/service/bagheera")
     assert device.user_alert_generated(output), f"Failed to generate user alert: {output}"
 
 
-def test_step4_wait(device):
+def test_step6_wait(device):
     """STEP_3_1 — Wait 50s."""
     time.sleep(50)
 
 
-def test_step5_verify_scheduler_starts(device):
-    """STEP_4 — Verify scheduler_manager logs Wrapper_scheduler starting."""
-    output = device.search_log("/home/ubuntu/.nddevice/log/scheduler_manager", "Wrapper_scheduler Starting", timeout=85, interval=10)
-    assert output, "Scheduler manager does not start its process"
+def test_step7_verify_scheduler_starts(device):
+    """STEP_4 — Verify scheduler_manager logs Wrapper_scheduler starting (after the alert was pushed)."""
+    # Log shape (no per-line timestamp), one pair per minute:
+    #   ::====================::Wrapper_scheduler Starting::====================::
+    #   Wrapper_scheduler with time = Tue Oct  6 08:51:23 GMT 2026
+    # so take the latest "Starting" + following "with time" pair and compare that date to the alert.
+    alert_epoch = device.variables.get("alert_start_epoch")
+    assert alert_epoch, "alert_start_epoch was not captured in the push-alert step"
+    end = time.time() + 90
+    started_at = None
+    while time.time() < end:
+        output = device.run("grep -h -A1 'Wrapper_scheduler Starting' /home/ubuntu/.nddevice/log/scheduler_manager/* | tail -n 4") or ""
+        times = re.findall(r"Wrapper_scheduler with time = \w+ (\w+)\s+(\d+) (\d{2}:\d{2}:\d{2}) GMT (\d{4})", output)
+        if times:
+            mon, day, hms, year = times[-1]
+            started_at = calendar.timegm(time.strptime(f"{year} {mon} {day} {hms}", "%Y %b %d %H:%M:%S"))
+            if started_at >= alert_epoch:
+                return
+        time.sleep(10)
+    assert False, f"Scheduler manager does not start its process after the alert (alert epoch {alert_epoch}, latest start epoch {started_at})"
 
 
-def test_step6_get_scheduler_start_time(device):
+def test_step8_get_scheduler_start_time(device):
     """STEP_5 — Extract the wrapper_scheduler start time from scheduler_manager logs."""
     output = device.run("grep 'Wrapper_scheduler with time' /home/ubuntu/.nddevice/log/scheduler_manager/* | awk -F ' ' '{print $8}' | tail -n 1")
     scheduler_start_time = (output or "").strip()
@@ -66,12 +100,12 @@ def test_step6_get_scheduler_start_time(device):
     device.variables["scheduler_start_time"] = scheduler_start_time
 
 
-def test_step7_wait(device):
+def test_step9_wait(device):
     """STEP_6 — Wait 50s."""
     time.sleep(50)
 
 
-def test_step8_get_uploader_shutdown_time(device):
+def test_step10_get_uploader_shutdown_time(device):
     """STEP_7 — Extract the Uploader Engine shutdown time from uploader logs."""
     output = device.run("grep 'Shutting down Uploader Engine' /home/ubuntu/.nddevice/log/uploader/uploader.log | awk -F ' ' '{print substr($2, 1, 8)}' | tail -n 1")
     uploader_shutdown_time = (output or "").strip()
@@ -79,7 +113,7 @@ def test_step8_get_uploader_shutdown_time(device):
     device.variables["uploader_shutdown_time"] = uploader_shutdown_time
 
 
-def test_step9_verify_latency_within_expected(device):
+def test_step11_verify_latency_within_expected(device):
     """STEP_8 — Verify scheduler-to-uploader latency is within 1.5 minutes."""
     scheduler_start_time = device.variables.get("scheduler_start_time")
     uploader_shutdown_time = device.variables.get("uploader_shutdown_time")

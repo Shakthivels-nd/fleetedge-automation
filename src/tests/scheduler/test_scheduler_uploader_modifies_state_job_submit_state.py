@@ -42,5 +42,10 @@ def test_step3_wait(device):
 
 def test_step4_verify_state_modified_to_job_submit_state(device):
     """STEP_5 — Verify uploader logs modifying state to JOB_SUBMIT_STATE."""
-    output = device.search_log("/home/ubuntu/.nddevice/log/uploader", "STATE is modified to  state:JOB_SUBMIT_STATE", timeout=60, interval=10)
-    assert output, "Uploader did not modify state to JOB_SUBMIT_STATE"
+    # Uploader lines start with "YYYY-MM-DD HH:MM:SS,mmm", so sorting all files' matches
+    # (rotated ones included) and taking the last gives the latest occurrence.
+    result = device.run_command_iteratively(
+        "grep -h 'STATE is modified to  state:JOB_SUBMIT_STATE' /home/ubuntu/.nddevice/log/uploader/* 2>/dev/null | sort | tail -n 1",
+        iteration=12, timeout=10, not_desired_output=[""],
+    )
+    assert result["status"] == "Pass", f"Uploader did not modify state to JOB_SUBMIT_STATE: {result['details']}"

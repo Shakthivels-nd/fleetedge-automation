@@ -300,7 +300,9 @@ class DeviceTest:
         return time_utils.get_current_time_epoch()
 
     def compare_time_difference_hms(self, timestamp1, expected_difference_minutes, timestamp2) -> Dict[str, Any]:
-        return time_utils.compare_time_difference_hms(timestamp1, expected_difference_minutes, timestamp2)
+        result = time_utils.compare_time_difference_hms(timestamp1, expected_difference_minutes, timestamp2)
+        self._log(f"compare_time_difference_hms({timestamp1}, {expected_difference_minutes}, {timestamp2})", result)
+        return result
 
     def validate_size_range(self, min_size, size, max_size, inclusive: bool = True) -> Dict[str, Any]:
         return time_utils.validate_size_range(min_size, size, max_size, inclusive)
