@@ -32,7 +32,7 @@ def test_step1_get_current_session_name(device):
 def test_step2_push_alert(device):
     """STEP_3 — Push alert to device."""
     output = device.run("./gen_ualert.sh", "/home/ubuntu/.nddevice/latest/service/bagheera")
-    assert output and "User alert is generated..!!!" in output, f"Failed to generate user alert: {output}"
+    assert device.user_alert_generated(output), f"Failed to generate user alert: {output}"
 
 
 def test_step3_wait(device):

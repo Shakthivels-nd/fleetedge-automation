@@ -162,7 +162,7 @@ def test_gen_useralert_and_video_upload_itn2432(device):
     start_timestamp = int(time.time()) * 1000
     cmd = "./gen_ualert.sh"
     output = device.run(cmd, "/home/ubuntu/.nddevice/latest/service/bagheera")
-    assert "User alert is generated..!!!" in output, "Expected confirmation message not found in output"
+    assert device.user_alert_generated(output), f"Expected user alert confirmation not found in output: {output}"
     print("User alert log entry generated successfully.")
 
     found_event_upload = device.search_log("/home/ubuntu/.nddevice/log/unifieduploader", "Upload successful for 0_trip", start_timestamp, timeout=600, interval=10)
@@ -334,7 +334,7 @@ def test_summary_json_files_generated_itn2457(device):
     print("This test is to verify if the summary.json file is generated once an alert is generated")
     cmd = "./gen_ualert.sh"
     output = device.run(cmd, "/home/ubuntu/.nddevice/latest/service/bagheera")
-    assert "User alert is generated..!!!" in output, "Expected confirmation message not found in output"
+    assert device.user_alert_generated(output), f"Expected user alert confirmation not found in output: {output}"
     print("User alert log entry generated successfully.")
 
     json_found = device.search_log("/data/nd_files/log/unifieduploader", "summary.json found", timeout=600, interval=10)
@@ -770,7 +770,7 @@ def test_aws_ping_reboot_command_itn2661(device):
 #     start_timestamp = int(time.time()) * 1000
 #     cmd = "./gen_ualert.sh"
 #     output = device.run(cmd, "/home/ubuntu/.nddevice/latest/service/bagheera")
-#     assert "User alert is generated..!!!" in output, "Expected confirmation message not found in output"
+#     assert device.user_alert_generated(output), f"Expected user alert confirmation not found in output: {output}"
 #     print("User alert log entry generated successfully.")
 
 #     found_event_upload = device.search_log("/home/ubuntu/.nddevice/log/unifieduploader", "Upload successful for 0_trip", start_timestamp, timeout=600, interval=10)

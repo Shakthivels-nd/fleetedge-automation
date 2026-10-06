@@ -28,7 +28,7 @@ def test_step2_verify_staging(device):
 def test_step3_push_alert(device):
     """STEP_2 — Push alert to trigger event data (non-blocking)."""
     output = device.run("./gen_ualert.sh", "/home/ubuntu/.nddevice/latest/service/bagheera")
-    if not output or "User alert is generated..!!!" not in output:
+    if not device.user_alert_generated(output):
         print(f"Alert message is not sent to device: {output}")
 
 

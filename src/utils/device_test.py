@@ -94,6 +94,17 @@ class DeviceTest:
         """Check if the pod session is alive."""
         return bool(self._pod_connection and self._pod_connection.isalive())
 
+    # gen_ualert.sh prints a different confirmation depending on the OTA: older builds print
+    # "User alert is generated..!!!", newer ones print "...sent USER_ALERT to q_nd_central ...".
+    USER_ALERT_MARKERS = (
+        "User alert is generated..!!!",
+        "sent USER_ALERT to q_nd_central",
+    )
+
+    def user_alert_generated(self, output: Optional[str]) -> bool:
+        """True if gen_ualert.sh output confirms the user alert was generated (any known OTA format)."""
+        return bool(output) and any(marker in output for marker in self.USER_ALERT_MARKERS)
+
     def close(self) -> None:
         """Close the pod connection."""
         connection.close_pod_connection(self._pod_connection)

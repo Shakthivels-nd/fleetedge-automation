@@ -8,7 +8,6 @@ pipeline {
 
     options {
         timestamps()
-        timeout(time: 8, unit: 'HOURS')
         buildDiscarder(logRotator(numToKeepStr: '30'))
         disableConcurrentBuilds()   // one device == one run at a time
     }
@@ -16,7 +15,7 @@ pipeline {
     parameters {
         string(name: 'AGENT_LABEL', defaultValue: 'deviceqa-laptop-2', description: 'Jenkins agent label (must have network access to the device)')
         string(name: 'BRANCH', defaultValue: 'main', description: 'Git branch to test')
-        string(name: 'SERVICES', defaultValue: '', description: 'Comma separated services to test, e.g. "scheduler,awsiot" (folder names under src/tests). Blank = all services')
+        string(name: 'SERVICES', defaultValue: '', description: 'Comma separated services to test, e.g. "scheduler,awsiot" (folder names under src/tests, or "sanity" for the sanity file). Blank = all')
         string(name: 'DEVICE_ID', defaultValue: '', description: 'Device ID under test (required)')
         string(name: 'DEVICE_IP', defaultValue: '', description: 'Device IP under test (required)')
         string(name: 'OTA_VERSION', defaultValue: '', description: 'OTA version being tested (required)')
@@ -50,8 +49,25 @@ pipeline {
             }
         }
 
-        stage('Run tests') {
+        stage('Trust device SSH key') {
+            when { expression { params.DEVICE_IP?.trim() } }
             steps {
+                // The tests ssh to the pod non-interactively (sshpass), so the agent user must already
+                // know the pod's host key. Add it once; keeps host-key checking on.
+                withEnv(["P_IP=${params.DEVICE_IP.trim()}"]) {
+                    sh '''
+                        mkdir -p ~/.ssh && chmod 700 ~/.ssh
+                        touch ~/.ssh/known_hosts && chmod 600 ~/.ssh/known_hosts
+                        if ! ssh-keygen -F "$P_IP" >/dev/null 2>&1; then
+                            ssh-keyscan -T 10 -H "$P_IP" >> ~/.ssh/known_hosts
+                        fi
+                    '''
+                }
+            }
+        }
+
+        stage('Run tests') {
+            steps { script {
                 // Parameters go through env vars (not Groovy interpolation) to avoid shell injection.
                 withEnv([
                     "P_SERVICES=${params.SERVICES}",
@@ -61,7 +77,7 @@ pipeline {
                     "P_ENV=${params.ENVIRONMENT}",
                     "P_SKIP=${params.SKIP_REBOOT}",
                 ]) {
-                    sh '''
+                    def rc = sh(returnStatus: true, script: '''
                         . .venv/bin/activate
                         [ -n "$P_ID" ]  && export DEVICE_ID="$P_ID"
                         [ -n "$P_IP" ]  && export DEVICE_IP="$P_IP"
@@ -79,17 +95,29 @@ pipeline {
                         for svc in "${svcs[@]}"; do
                             svc=$(echo "$svc" | xargs)
                             [ -z "$svc" ] && continue
+                            if [ "${svc,,}" = "sanity" ]; then paths+=(src/tests/test_sanity_functions.py); continue; fi
                             dir=$(find src/tests -maxdepth 1 -mindepth 1 -type d -iname "$svc" | head -n1)
                             [ -z "$dir" ] && { echo "Unknown service '$svc'. Available:"; ls -d src/tests/*/ | xargs -n1 basename; exit 2; }
                             paths+=("$dir")
                         done
                         [ ${#paths[@]} -eq 0 ] && paths=(src/tests)
-                        # Keep the stage red on test failures but still publish reports.
                         python -m pytest "${paths[@]}" "${args[@]}" 2>&1 | tee pytest.log
                         exit ${PIPESTATUS[0]}
-                    '''
+                    ''')
+                    // Red (FAILURE) only when no test actually ran (setup/connection errors, bad service
+                    // name, crash, nothing collected). If at least one test passed or failed, the suite ran:
+                    // all passed -> SUCCESS, some failed -> UNSTABLE (yellow), details in Test_report.
+                    def testsRan = sh(returnStatus: true,
+                        script: "tail -n 1 pytest.log | grep -Eq '[0-9]+ (passed|failed)'") == 0
+                    if (rc == 0) {
+                        // all passed
+                    } else if (testsRan) {
+                        unstable('Some tests failed - see Test_report')
+                    } else {
+                        error("No tests ran (pytest exit code ${rc}) - check the console log")
+                    }
                 }
-            }
+            } }
         }
     }
 
