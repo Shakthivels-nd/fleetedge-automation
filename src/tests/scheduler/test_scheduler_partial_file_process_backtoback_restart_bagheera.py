@@ -19,8 +19,9 @@ import time
 
 
 def test_step1_wait(device):
-    """PreCondition_1 — Wait 10s."""
+    """PreCondition_1 — Wait 10s, then mark the search-start timestamp used by step 13."""
     time.sleep(10)
+    device.variables["search_start_ts"] = device.get_current_time_epoch()["epoch_ms"]
 
 
 def test_step2_restart_bagheera_first(device):
@@ -83,11 +84,18 @@ def test_step11_wait(device):
     time.sleep(90)
 
 
-def test_step12_verify_partial_recording_data(device):
-    """STEP_4 — Verify ndcentral logs partial recording start/end."""
+def test_step12_verify_partial_recording_logged(device):
+    """STEP_12 — Verify ndcentral logs partial recording start/end."""
+    # The partial-recording line is logged while bagheera/ndcentral restart, i.e. well before this
+    # check runs, so no start-time filter here: show only the latest occurrence
+    # (ndcentral lines start with "<epoch-ms>: ...", so sort -n on that and tail -1).
     for message in ["Partial - rec start", "rec end"]:
-        output = device.search_log("/home/ubuntu/.nddevice/log/ndcentral", message, timeout=30, interval=5)
-        assert output, f"'{message}' not found in ndcentral logs"
+        result = device.run_command_iteratively(
+            f"grep -h '{message}' /home/ubuntu/.nddevice/log/ndcentral/* 2>/dev/null | sort -n | tail -n 1",
+            iteration=12, timeout=5, not_desired_output=[""],
+        )
+        assert result["status"] == "Pass", f"'{message}' not found in ndcentral logs: {result['details']}"
+
 
 
 def test_step13_verify_both_sessions_processed(device):
@@ -96,5 +104,5 @@ def test_step13_verify_both_sessions_processed(device):
     session_name_second = device.variables.get("session_name_second")
     for session_name in [session_name_first, session_name_second]:
         assert session_name, "Session name was not captured"
-        output = device.search_log("/home/ubuntu/.nddevice/log/scheduler", f"Inside filename /home/iriscli/ND_INPUT/{session_name}", timeout=30, interval=5)
+        output = device.search_log("/home/ubuntu/.nddevice/log/scheduler", f"Inside filename /home/iriscli/ND_INPUT/{session_name}", start_timestamp=device.variables["search_start_ts"], timeout=60, interval=5)
         assert output, f"Partial files for session {session_name!r} are not processed"

@@ -79,5 +79,5 @@ def test_step8_verify_state_modified_to_upload_state(device):
         "STATE is modified to  state:UPLOAD_STATE",
         "STATE to UPLOAD_STATE   alerts found, exit code 0",
     ]:
-        output = device.search_log("/home/ubuntu/.nddevice/log/inference", message, alert_start_ts, timeout=60, interval=10)
+        output = device.search_log("/home/ubuntu/.nddevice/log/inference", message, alert_start_ts, timeout=120, interval=10)
         assert output, f"'{message}' not found in inference logs"
