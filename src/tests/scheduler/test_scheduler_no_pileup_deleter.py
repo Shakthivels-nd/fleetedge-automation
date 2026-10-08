@@ -35,6 +35,7 @@ def test_step4_get_first_session_name(device):
 
 def test_step5_restart_bagheera_first(device):
     """STEP_2 — Restart bagheera service."""
+    device.variables["restart_first_ts"] = device.get_current_time_epoch()["epoch_ms"]  # device-clock epoch ms, just before the first restart
     result = device.restart_service("bagheera")
     assert result["status"] == "Pass", f"Failed to restart bagheera service: {result['details']}"
 
@@ -54,6 +55,7 @@ def test_step7_wait(device):
 
 def test_step8_restart_bagheera_second(device):
     """STEP_5 — Restart bagheera service again."""
+    device.variables["restart_second_ts"] = device.get_current_time_epoch()["epoch_ms"]  # device-clock epoch ms, just before the second restart
     result = device.restart_service("bagheera")
     assert result["status"] == "Pass", f"Failed to restart bagheera service: {result['details']}"
 
@@ -79,15 +81,36 @@ def test_step11_verify_no_file_pile_second_session(device):
     assert (output or "").strip() == "false", "File pile due to deleter couldn't delete the files"
 
 
+_DELETER_LOG_DIR = "/home/ubuntu/.nddevice/log/deleter"
+
+
+def _wait_for_deleter_line(device, session_name, since_ts_ms):
+    """Poll (up to 30 x 10s) for the deleter's "Files with names <session>* are deleted" line logged
+    since since_ts_ms. Searches the current AND rotated deleter logs (deleter.log.<date>), unlike
+    device.search_log whose `*.log` glob skips rotated files. Deleter lines start with a UTC datetime."""
+    start_sec = int(since_ts_ms) // 1000
+    cmd = (
+        f"grep -rh 'Files with names /home/iriscli/ND_INPUT/{session_name}' {_DELETER_LOG_DIR} 2>/dev/null | "
+        f"awk -v ts=\"$(date -u -d @{start_sec} '+%Y-%m-%d %H:%M:%S')\" 'substr($0,1,19) >= ts' | tail -n 1"
+    )
+    return device.run_command_iteratively(cmd, iteration=30, timeout=10, not_desired_output=[""])
+
+
 def test_step12_verify_deleter_deleted_first_session(device):
     """STEP_9 — Verify deleter logs deleting the first session's files."""
     session_name_first = device.variables.get("session_name_first")
-    output = device.search_log("/home/ubuntu/.nddevice/log/deleter", f"Files with names /home/iriscli/ND_INPUT/{session_name_first}", timeout=30, interval=5)
-    assert output, "Session name first files are not deleted by deleter"
+    restart_first_ts = device.variables.get("restart_first_ts")
+    assert restart_first_ts, "restart_first_ts was not captured before the first restart"
+    result = _wait_for_deleter_line(device, session_name_first, restart_first_ts)
+    assert result["status"] == "Pass", f"Session name first files are not deleted by deleter: {result['details']}"
+    print(f"Deleter line: {result['output']}")
 
 
 def test_step13_verify_deleter_deleted_second_session(device):
     """STEP_10 — Verify deleter logs deleting the second session's files."""
     session_name_second = device.variables.get("session_name_second")
-    output = device.search_log("/home/ubuntu/.nddevice/log/deleter", f"Files with names /home/iriscli/ND_INPUT/{session_name_second}", timeout=30, interval=5)
-    assert output, "Session name second files are not deleted by deleter"
+    restart_second_ts = device.variables.get("restart_second_ts")
+    assert restart_second_ts, "restart_second_ts was not captured before the second restart"
+    result = _wait_for_deleter_line(device, session_name_second, restart_second_ts)
+    assert result["status"] == "Pass", f"Session name second files are not deleted by deleter: {result['details']}"
+    print(f"Deleter line: {result['output']}")

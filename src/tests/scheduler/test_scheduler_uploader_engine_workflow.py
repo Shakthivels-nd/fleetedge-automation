@@ -8,8 +8,10 @@ Description:
   Ported from nd_test_bot's TC_1327_SCHEDULER_UPLOADER_ENGINE_WORKFLOW.
   Session name is captured (matching the reference's STEP_1) but, same as
   the reference, never consumed by the later log checks -- kept for
-  parity/debug visibility. Regex patterns (".*") pass through FE's
-  search_log to plain `grep` (basic regex) unchanged.
+  parity/debug visibility. Every log check greps all uploader logs
+  (rotated ones included) on the device and shows only the latest
+  occurrence; regex patterns (".*") are passed to `grep` (basic regex)
+  unchanged.
 
   push_alert uses gen_ualert.sh (FE's real alert-trigger mechanism, no DTA
   agent on FE devices) instead of the reference's SendMsgServer-based
@@ -20,6 +22,20 @@ Description:
 """
 
 import time
+
+
+_LOG_DIR = "/home/ubuntu/.nddevice/log/uploader"
+
+
+def _grep_latest(device, message, error):
+    """Grep every uploader log (rotated ones included) for `message` (basic regex) and show only the
+    latest occurrence: lines start with "YYYY-MM-DD HH:MM:SS,mmm", so sort + tail -1 gives the newest.
+    Retries up to 30s (6 x 5s) until something is found."""
+    result = device.run_command_iteratively(
+        f"grep -h '{message}' {_LOG_DIR}/* 2>/dev/null | sort | tail -n 1",
+        iteration=6, timeout=5, not_desired_output=[""],
+    )
+    assert result["status"] == "Pass", f"{error}: {result['details']}"
 
 
 def test_step1_verify_bagheera_active(device):
@@ -48,42 +64,35 @@ def test_step4_wait(device):
 
 def test_step5_verify_uploader_engine_started(device):
     """STEP_5 — Verify uploader logs starting the Uploader Engine."""
-    output = device.search_log("/home/ubuntu/.nddevice/log/uploader", "Starting Uploader Engine", timeout=30, interval=5)
-    assert output, "Uploader Engine not started"
+    _grep_latest(device, "Starting Uploader Engine", "Uploader Engine not started")
 
 
 def test_step6_verify_upload_state_checked(device):
     """STEP_6 — Verify uploader logs checking UPLOAD_STATE in ND_INPUT."""
-    output = device.search_log("/home/ubuntu/.nddevice/log/uploader", "Checking UPLOAD_STATE in file: /home/iriscli/ND_INPUT", timeout=30, interval=5)
-    assert output, "UPLOAD_STATE not checked"
+    _grep_latest(device, "Checking UPLOAD_STATE in file: /home/iriscli/ND_INPUT", "UPLOAD_STATE not checked")
 
 
 def test_step7_verify_event_data_message_sent(device):
     """STEP_7 — Verify uploader logs sending a MSG_TYPE_EVENTDATA message."""
-    output = device.search_log("/home/ubuntu/.nddevice/log/uploader", "sending message <newUploadMetaData.MSG_TYPE_EVENTDATA object at .* to uploader", timeout=30, interval=5)
-    assert output, "Uploader did not detect the alert and send msgtype to uploader"
+    _grep_latest(device, "sending message <newUploadMetaData.MSG_TYPE_EVENTDATA object at .* to uploader", "Uploader did not detect the alert and send msgtype to uploader")
 
 
 def test_step8_verify_event_codes_and_ib_alert(device):
     """STEP_8 — Verify uploader logs commn_set/event_codes/ibAlert True."""
     for message in ["commn_set", "event_codes", "ibAlert True"]:
-        output = device.search_log("/home/ubuntu/.nddevice/log/uploader", message, timeout=30, interval=5)
-        assert output, f"'{message}' not detected in uploader logs"
+        _grep_latest(device, message, f"'{message}' not detected in uploader logs")
 
 
 def test_step9_verify_state_modified_to_job_submit_state(device):
     """STEP_9 — Verify uploader logs modifying state to JOB_SUBMIT_STATE."""
-    output = device.search_log("/home/ubuntu/.nddevice/log/uploader", "STATE is modified to  state:JOB_SUBMIT_STATE", timeout=30, interval=5)
-    assert output, "Uploader did not modify state to JOB_SUBMIT_STATE"
+    _grep_latest(device, "STATE is modified to  state:JOB_SUBMIT_STATE", "Uploader did not modify state to JOB_SUBMIT_STATE")
 
 
 def test_step10_verify_file_sync_finished(device):
     """STEP_10 — Verify uploader logs finishing the file sync."""
-    output = device.search_log("/home/ubuntu/.nddevice/log/uploader", "File sync finished: /home/iriscli/ND_INPUT", timeout=30, interval=5)
-    assert output, "File sync not finished"
+    _grep_latest(device, "File sync finished: /home/iriscli/ND_INPUT", "File sync not finished")
 
 
 def test_step11_verify_uploader_engine_shutdown(device):
     """STEP_11 — Verify uploader logs shutting down the Uploader Engine."""
-    output = device.search_log("/home/ubuntu/.nddevice/log/uploader", "Shutting down Uploader Engine", timeout=30, interval=5)
-    assert output, "Uploader Engine not shutdown"
+    _grep_latest(device, "Shutting down Uploader Engine", "Uploader Engine not shutdown")

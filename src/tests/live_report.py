@@ -32,6 +32,7 @@ installed), every failure just shows as unclassified rather than erroring.
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 from datetime import datetime
@@ -50,7 +51,6 @@ from src.tests.functionality_map import get_functionality_group_from_nodeid, get
 
 
 REPORT_DIR = Path("src/reports")
-RESULTS_FILE = REPORT_DIR / ".live_results.jsonl"
 REPORT_PATH = REPORT_DIR / "live_report.html"
 
 # A test function named test_step1_..., test_step2_..., etc. is one step of
@@ -75,15 +75,21 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 def pytest_configure(config: pytest.Config) -> None:
     if config.getoption("--no-live-report"):
         return
+    # --collect-only (IDE test discovery, etc.) never runs tests; registering the
+    # plugin there would purge results / blank the report of a run in progress.
+    if config.getoption("collectonly", default=False):
+        return
     config.pluginmanager.register(LiveReportPlugin(config), "live_report_plugin")
 
 
 class LiveReportPlugin:
     def __init__(self, config: Optional[pytest.Config] = None):
         REPORT_DIR.mkdir(parents=True, exist_ok=True)
-        # Purge stale artifacts from any previous run before this one starts.
-        if RESULTS_FILE.exists():
-            RESULTS_FILE.unlink()
+        # Each pytest process writes its own results file (keyed by pid) so a second
+        # pytest process starting mid-run can't delete this run's results. Only files
+        # left behind by processes that are no longer alive are purged.
+        self._results_file = REPORT_DIR / f".live_results.{os.getpid()}.jsonl"
+        self._purge_stale_results()
         self.start_time = time.time()
         self._last_write = 0.0
         self._jira_cache: Optional["JiraCache"] = None
@@ -106,6 +112,26 @@ class LiveReportPlugin:
         # snapshot survives even if the same item object were reused.
         self._command_log_start: Dict[str, int] = {}
         self._write_report()  # initial empty report so the file exists immediately
+
+    def _purge_stale_results(self) -> None:
+        for f in REPORT_DIR.glob(".live_results*.jsonl"):
+            if f == self._results_file:
+                f.unlink()
+                continue
+            parts = f.name.split(".")  # ['', 'live_results', '<pid>', 'jsonl'] (legacy: no pid)
+            try:
+                pid = int(parts[2]) if len(parts) == 4 else None
+            except ValueError:
+                pid = None
+            alive = False
+            if pid is not None:
+                try:
+                    os.kill(pid, 0)
+                    alive = True
+                except OSError:
+                    alive = False
+            if not alive:
+                f.unlink(missing_ok=True)
 
     # ── Hooks ──────────────────────────────────────────────────────────
 
@@ -215,14 +241,14 @@ class LiveReportPlugin:
         }
 
     def _append_result(self, result: Dict[str, Any]) -> None:
-        with open(RESULTS_FILE, "a") as f:
+        with open(self._results_file, "a") as f:
             f.write(json.dumps(result) + "\n")
 
     def _load_results(self) -> List[Dict[str, Any]]:
-        if not RESULTS_FILE.exists():
+        if not self._results_file.exists():
             return []
         results = []
-        for line in RESULTS_FILE.read_text().splitlines():
+        for line in self._results_file.read_text().splitlines():
             line = line.strip()
             if line:
                 try:
@@ -336,7 +362,10 @@ class LiveReportPlugin:
             output_html = ""
             if output is not None:
                 output_str = output if isinstance(output, str) else json.dumps(output, indent=2, default=str)
-                output_html = f"<pre>{self._esc(output_str)}</pre>"
+                if output_str.strip():
+                    output_html = f"<pre>{self._esc(output_str)}</pre>"
+                else:
+                    output_html = '<div class="no-cmds">(no output)</div>'
             rows.append(
                 f'<div class="cmd-entry">'
                 f'<div class="cmd-line"><code>{cmd}</code><span class="cmd-ts">{ts}</span></div>'

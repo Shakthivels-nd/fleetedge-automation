@@ -30,5 +30,9 @@ def test_step1_1_restart_scheduler_manager(device):
 
 def test_step2_verify_trigger_sent(device):
     """STEP_2 — Verify ndcentral logs sending the scheduler_manager trigger."""
-    output = device.search_log("/home/ubuntu/.nddevice/log/ndcentral", "Trigger scheduler manager sent", timeout=80, interval=10)
-    assert output, "Trigger scheduler manager not sent"
+    # ndcentral lines start with "<epoch-ms>: ...", so sort -n on that and tail -1 gives the latest occurrence.
+    result = device.run_command_iteratively(
+        "grep -h 'Trigger scheduler manager sent' /home/ubuntu/.nddevice/log/ndcentral/* 2>/dev/null | sort -n | tail -n 1",
+        iteration=8, timeout=10, not_desired_output=[""],
+    )
+    assert result["status"] == "Pass", f"Trigger scheduler manager not sent: {result['details']}"

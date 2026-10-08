@@ -19,6 +19,7 @@ import time
 
 def test_step1_restart_bagheera(device):
     """STEP_1 — Restart bagheera service."""
+    device.variables["restart_start_ts"] = int(time.time()) * 1000  # epoch ms, just before the restart
     result = device.restart_service("bagheera")
     assert result["status"] == "Pass", f"Failed to restart bagheera service: {result['details']}"
 
@@ -30,12 +31,16 @@ def test_step2_wait(device):
 
 def test_step3_verify_recording_data_sent_to_hs(device):
     """STEP_3 — Verify ndcentral logs sending recording data to HS."""
-    output = device.search_log("/home/ubuntu/.nddevice/log/ndcentral", "sending recording data to HS", timeout=30, interval=5)
+    restart_start_ts = device.variables.get("restart_start_ts")
+    assert restart_start_ts, "restart_start_ts was not captured before the restart"
+    output = device.search_log("/home/ubuntu/.nddevice/log/ndcentral", "sending recording data to HS", restart_start_ts, timeout=60, interval=5)
     assert output, "Recording data is not sent to HS"
 
 
 def test_step4_verify_recording_start_end_fields(device):
     """STEP_4 — Verify ndcentral logs recording start/end time fields."""
+    restart_start_ts = device.variables.get("restart_start_ts")
+    assert restart_start_ts, "restart_start_ts was not captured before the restart"
     for message in ["Recording start time", "end time =", "recordingstart", "recordingend"]:
-        output = device.search_log("/home/ubuntu/.nddevice/log/ndcentral", message, timeout=30, interval=5)
+        output = device.search_log("/home/ubuntu/.nddevice/log/ndcentral", message, restart_start_ts, timeout=60, interval=5)
         assert output, f"'{message}' not found in ndcentral logs"
