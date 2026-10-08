@@ -62,6 +62,7 @@ def test_step2_verify_counter_increments_by_one(device):
     samples = device.variables.get("counter_samples")
     assert samples and len(samples) >= 2, f"Not enough counter samples to compute diffs: {samples}"
     diffs = [b - a for a, b in zip(samples, samples[1:])]
+    device._log("verify counter diffs", {"samples": samples, "diffs": diffs, "has_plus_one": 1 in diffs})
     assert 1 in diffs, (
         f"Expected at least one +1 counter increment between consecutive samples, "
         f"got samples={samples}, diffs={diffs}."

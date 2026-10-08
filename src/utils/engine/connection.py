@@ -145,6 +145,10 @@ def clean_output(output: str) -> str:
       - Shell prompts like 'root@host:/path#' or '$'
       - Duplicate blank lines
     """
+    # Remove OSC sequences (window-title '\x1b]0;...\x07') first, otherwise the CSI regex
+    # below eats the 'r' of a following 'root@' and leaves 'oot@' glued to the output.
+    output = re.sub(r'\x1B\][^\x07\x1B]*(?:\x07|\x1B\\)', '', output)
+
     # Remove ANSI escape sequences (colors, cursor moves, etc.)
     ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
     output = ansi_escape.sub('', output)
@@ -153,7 +157,7 @@ def clean_output(output: str) -> str:
     output = re.sub(r"^tail: .*(?:has become inaccessible|has appeared|cannot open).*$", "", output, flags=re.MULTILINE)
 
     # Remove shell prompt lines (root@..., ubuntu@..oot., etc.)
-    prompt_pattern = re.compile(r'\b(?:oot@|netradyne-|homeroot|root@)[^\n]*', re.IGNORECASE)
+    prompt_pattern = re.compile(r'(?:\b(?:netradyne-|homeroot)|r?oot@)[^\n]*', re.IGNORECASE)
     output = prompt_pattern.sub('', output)
 
     # Remove trailing/leading whitespace and compress multiple blank lines
