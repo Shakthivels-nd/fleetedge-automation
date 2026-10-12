@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Test Scope - {{FEATURE_TITLE}}</title>
+  <style>
+    :root {
+      --bg: #eef2f7;
+      --surface: #ffffff;
+      --surface-2: #f8fafc;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: #dbe3ee;
+      --blue: #1d4ed8;
+      --blue-soft: #dbeafe;
+      --green: #047857;
+      --green-soft: #dcfce7;
+      --amber: #b45309;
+      --amber-soft: #fef3c7;
+      --red: #b91c1c;
+      --red-soft: #fee2e2;
+      --shadow: 0 1px 3px rgba(2, 6, 23, 0.08);
+      --radius: 10px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", "Inter", Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+    .header {
+      background: linear-gradient(120deg, #0b1f44 0%, #173a7a 52%, #2356b8 100%);
+      color: #fff;
+      padding: 26px 28px;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 21px;
+      letter-spacing: -0.2px;
+    }
+    .sub {
+      margin-top: 6px;
+      font-size: 13px;
+      color: #cbd5e1;
+    }
+    .meta {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      font-size: 12px;
+      color: #dbeafe;
+    }
+    .meta span {
+      padding: 4px 10px;
+      border: 1px solid rgba(219, 234, 254, 0.28);
+      border-radius: 999px;
+    }
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+    .tab-btn {
+      border: 1px solid var(--border);
+      background: var(--surface-2);
+      color: #1e293b;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .tab-btn.active {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
+    .container {
+      max-width: 1420px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      margin-bottom: 16px;
+    }
+    .sec {
+      margin: 0 0 12px 0;
+      font-size: 16px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+    }
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+    }
+    .kpi {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+      background: var(--surface-2);
+    }
+    .kpi .v { font-size: 28px; font-weight: 800; }
+    .kpi .l { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .p0 { background: var(--red-soft); color: var(--red); }
+    .p1 { background: var(--amber-soft); color: var(--amber); }
+    .p2 { background: var(--blue-soft); color: #1e40af; }
+    .tbl-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+    }
+    th, td {
+      text-align: left;
+      vertical-align: top;
+      padding: 10px;
+      border-bottom: 1px solid #edf2f7;
+      font-size: 12.5px;
+    }
+    td ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+    td ul li {
+      margin-bottom: 2px;
+    }
+    th {
+      background: #f1f5f9;
+      color: #334155;
+      font-size: 11px;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+    }
+    details {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+    }
+    summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: #0f172a;
+    }
+    ol { margin: 8px 0 0 18px; }
+    li { margin: 3px 0; }
+    .note {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-left: 3px solid #94a3b8;
+      background: #f8fafc;
+      color: #334155;
+      font-size: 12px;
+    }
+    .va-block { margin-top: 12px; }
+    .va-title { margin: 0 0 8px 0; font-size: 16px; font-weight: 600; }
+    .va-bar {
+      display: flex;
+      width: 100%;
+      height: 34px;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #dbe3ee;
+    }
+    .va-seg {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .va-green { background: #1fa64b; }
+    .va-blue { background: #2d63db; border-left: 2px solid #e6edf7; }
+    .va-gray { background: #627691; border-left: 2px solid #e6edf7; }
+    .va-legend { margin-top: 10px; font-size: 12px; color: #334155; }
+    .va-row { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 6px; }
+    .va-item { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .va-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+    .va-dot.green { background: #1fa64b; }
+    .va-dot.blue { background: #2d63db; }
+    .va-dot.orange { background: #d97706; }
+    .va-dot.gray { background: #627691; }
+    .arch-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .arch-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 14px;
+      background: #f8fafc;
+      cursor: pointer;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .arch-chev {
+      width: 16px;
+      text-align: center;
+      color: #2563eb;
+      font-weight: 700;
+      transition: transform 0.2s ease;
+    }
+    .arch-card.open .arch-chev { transform: rotate(90deg); }
+    .arch-body { display: none; padding: 14px; }
+    .arch-card.open .arch-body { display: block; }
+    .arch-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .arch-pane {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+    .arch-pane-h {
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .arch-pane-h.before { background: #fde7d4; color: #9a4a07; }
+    .arch-pane-h.after { background: #d3eddb; color: #216c33; }
+    .arch-svg {
+      padding: 10px;
+      background: #fff;
+      min-height: 270px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .arch-svg svg { max-width: 100%; height: auto; }
+    .arch-meta {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+    }
+    .arch-chip {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #f8fafc;
+      padding: 8px 10px;
+      font-size: 12px;
+      color: #334155;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+    .b-high { background: #fee2e2; color: #b91c1c; border-color: #ef4444; }
+    .b-med { background: #fff5e0; color: #a16407; border-color: #eab308; }
+    .b-low { background: #dbeafe; color: #1e40af; border-color: #60a5fa; }
+    .b-service { background: #e0f2fe; color: #0c4a6e; }
+    .exclusion { background:#fff7ed; border-left:4px solid #b45309; padding:10px 14px; border-radius:0 4px 4px 0; font-size:13px; }
+    @media (max-width: 900px) {
+      .two-col { grid-template-columns: 1fr; }
+      .container { padding: 12px; }
+      .va-seg { font-size: 22px; }
+      .arch-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Test Scope - {{FEATURE_TITLE}}</h1>
+    <div class="sub">{{FEATURE_SUBTITLE}}</div>
+    <div class="meta">
+      <span>Platform: {{PLATFORMS}}</span>
+      <span>Release: {{RELEASE}}</span>
+      <span>PR: {{PR_REF}}</span>
+      <span>Component: {{COMPONENT}}</span>
+      <span>Updated: {{UPDATED_DATE}}</span>
+    </div>
+  </div>
+
+  <div class="nav">
+    <button class="tab-btn active" data-tab="overview">Overview</button>
+    <button class="tab-btn" data-tab="architecture">Architecture</button>
+    <button class="tab-btn" data-tab="services">Service Impact</button>
+    <button class="tab-btn" data-tab="testcases">Test Scope</button>
+    <button class="tab-btn" data-tab="automation_pytest">Automation - FE Pytest</button>
+    <button class="tab-btn" data-tab="automation_monitoring">Automation - Monitoring</button>
+    <button class="tab-btn" data-tab="findings">PR Analysis</button>
+    <button class="tab-btn" data-tab="gap_analysis">Gap Analysis</button>
+  </div>
+
+  <div class="container">
+
+    <!-- ═══════════════ OVERVIEW ═══════════════ -->
+    <section class="panel active" id="overview">
+      <div class="card">
+        <h2 class="sec">Release Summary</h2>
+        <div class="two-col">
+          <div>
+            {{OVERVIEW_SUMMARY_HTML}}
+          </div>
+          <div>
+            <div class="kpi-grid">
+              <div class="kpi"><div class="v">{{KPI_TOTAL_SCENARIOS}}</div><div class="l">Total Testable Scenarios</div></div>
+              <div class="kpi"><div class="v">{{KPI_AUTOMATED}}</div><div class="l">Automated</div></div>
+              <div class="kpi"><div class="v">{{KPI_NOT_AUTOMATABLE}}</div><div class="l">Not Automatable</div></div>
+              <div class="kpi"><div class="v">{{KPI_NOT_APPLICABLE}}</div><div class="l">Not Applicable</div></div>
+              <div class="kpi"><div class="v">{{KPI_FILES_CHANGED}}</div><div class="l">Files Changed ({{PR_REF}})</div></div>
+              <div class="kpi"><div class="v">{{KPI_SERVICES_IMPACTED}}</div><div class="l">Services Impacted</div></div>
+              <div class="kpi"><div class="v">{{KPI_OPEN_BUGS}}</div><div class="l">Open Known Bugs</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="sec">Tickets In Scope</h2>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr><th>Ticket</th><th>Type</th><th>Summary</th><th>Affected Service</th><th>Fix Version</th></tr>
+            </thead>
+            <tbody>
+              {{TICKETS_TABLE_ROWS}}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="sec">Known Open Bugs</h2>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr><th>Ticket</th><th>Priority</th><th>Summary</th><th>Impact</th></tr>
+            </thead>
+            <tbody>
+              {{OPEN_BUGS_TABLE_ROWS}}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ ARCHITECTURE ═══════════════ -->
+    <section class="panel" id="architecture">
+      <div class="card">
+        <h2 class="sec">Architecture Flow — Before vs After, by change group</h2>
+        {{ARCH_CARDS_HTML}}
+      </div>
+    </section>
+
+    <!-- ═══════════════ SERVICE IMPACT ═══════════════ -->
+    <section class="panel" id="services">
+      <div class="card">
+        <h2 class="sec">Service Impact Classification</h2>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr><th>Service</th><th>Impact Type</th><th>Role</th><th>Release Impact</th></tr>
+            </thead>
+            <tbody>
+              {{SERVICE_IMPACT_ROWS}}
+            </tbody>
+          </table>
+        </div>
+        <div class="note">{{SERVICE_IMPACT_NOTE}}</div>
+      </div>
+      <div class="card">
+        <h2 class="sec">High-Risk Focus Areas</h2>
+        <ul>
+          {{HIGH_RISK_LIST}}
+        </ul>
+      </div>
+    </section>
+
+    <!-- ═══════════════ TEST SCOPE ═══════════════ -->
+    <section class="panel" id="testcases">
+      <div class="card">
+        <h2 class="sec">Test Scope — {{FEATURE_TITLE}} (Overall, Reconciled)</h2>
+        <p style="margin: 0 0 16px 0; color: #475569;">{{TEST_SCOPE_INTRO}}</p>
+
+        <div class="exclusion" style="margin-bottom:16px;"><strong>Out of automation scope by design:</strong> {{TEST_SCOPE_EXCLUSION_NOTE}}</div>
+
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr><th style="width:16%;">Category</th><th style="width:20%;">Scenario</th><th style="width:42%;">Test Steps / Description</th><th style="width:22%;">Automation Status</th></tr>
+            </thead>
+            <tbody>
+              {{TEST_SCOPE_ROWS}}
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:16px; background:#e3fcef; border-left:4px solid #006644; padding:12px 16px; border-radius:0 4px 4px 0; font-size:13px;">
+          {{TEST_SCOPE_TOTALS_NOTE}}
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ AUTOMATION - FE PYTEST ═══════════════ -->
+    <section class="panel" id="automation_pytest">
+      <div class="card">
+        <h2 class="sec">Automation - FE Pytest (fleetedge-automation)</h2>
+        <p style="margin: 0 0 16px 0; color: #475569;">Tests under <code>src/tests/&lt;feature&gt;/</code> executed through the <code>DeviceTest</code> facade over the SSH/kubectl pod session. Status: <span style="color:#006644; font-weight:700;">DONE</span> = implemented &amp; runnable; <span style="color:#b45309; font-weight:700;">UNVERIFIED</span> = ported but log strings/paths not yet confirmed on a live device.</p>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Test File / TC</th><th>Description</th><th>Functionality Group</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+              {{AUTOMATION_PYTEST_ROWS}}
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:16px; background:#e3fcef; border-left:4px solid #006644; padding:12px 16px; border-radius:0 4px 4px 0; font-size:13px;">
+          {{AUTOMATION_PYTEST_SUMMARY_NOTE}}
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ AUTOMATION - MONITORING ═══════════════ -->
+    <section class="panel" id="automation_monitoring">
+      <div class="card">
+        <h2 class="sec">Automation - Monitoring</h2>
+        <p style="margin: 0 0 14px 0; color: #475569;">Cloud-side fleet and soak-window monitoring after {{FEATURE_TITLE}} deployment &mdash; signals readable without connecting to a device.</p>
+        {{AUTOMATION_MONITORING_BODY}}
+      </div>
+    </section>
+
+    <!-- ═══════════════ PR ANALYSIS ═══════════════ -->
+    <section class="panel" id="findings">
+      <div class="card">
+        <h2 class="sec">PR Review Findings</h2>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr><th>Severity</th><th>Ticket</th><th>Description</th><th>Location</th><th>Could Cause</th><th>PR</th></tr>
+            </thead>
+            <tbody>
+              {{PR_FINDINGS_ROWS}}
+            </tbody>
+          </table>
+        </div>
+        <div class="note">{{PR_FINDINGS_NOTE}}</div>
+      </div>
+
+      <div class="card">
+        <h2 class="sec">PR Scope Notes</h2>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr><th>Item</th><th>Detail</th></tr>
+            </thead>
+            <tbody>
+              {{PR_SCOPE_NOTES_ROWS}}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ GAP ANALYSIS ═══════════════ -->
+    <section class="panel" id="gap_analysis">
+      <div class="card">
+        <h2 class="sec">Gap Analysis</h2>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr><th>Area / Gap</th><th>Note</th></tr>
+            </thead>
+            <tbody>
+              {{GAP_ANALYSIS_ROWS}}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const panels = document.querySelectorAll('.panel');
+
+    function toggleArch(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.toggle('open');
+    }
+
+    tabButtons.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        tabButtons.forEach((b) => b.classList.remove('active'));
+        panels.forEach((p) => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>
