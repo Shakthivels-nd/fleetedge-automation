@@ -731,3 +731,53 @@ def get_hs_db_latest_entry_ts(pod_connection, session, db_path="/home/ubuntu/.nd
     details.append(f"Timestamp of latest entry for {session!r}: {timestamp}")
     print(f"[HSDbLatestEntry] {session}: {timestamp}")
     return {"status": "Pass", "timestamp": timestamp, "details": details}
+
+
+def get_inference_summary(pod_connection, watch_dir="/home/iriscli/ND_OUTPUT", summary_file="summary.json",
+                          timeout=180, poll_interval=1):
+    """Wait for inference's summary file in the newest session folder and return its size.
+
+    Ported from nd_test_bot's get_inference_summary, same flow (take the most
+    recently modified folder under watch_dir, then wait for <folder>/<summary_file>
+    to appear and report its size in bytes), but polled from Python with short
+    commands instead of one long-running remote shell loop, so the pod session's
+    prompt matching can't be confused by a loop that outlives the command timeout.
+    The reference's SSH exec / global_test_steps bookkeeping is replaced by the
+    returned dict (DeviceTest logs the call into the command log).
+
+    Returns {status: "Pass"/"Fail", folder, file_size (int bytes or None), details}.
+    """
+    import time as _time
+
+    details = []
+    end_time = _time.time() + timeout
+    folder_path = None
+
+    while _time.time() < end_time:
+        newest = run_command_on_pod(pod_connection, f"ls -t {watch_dir} 2>/dev/null | head -n 1")
+        newest = (newest or "").strip().splitlines()[-1].strip() if newest else ""
+        if newest:
+            candidate = f"{watch_dir}/{newest}"
+            is_dir = (run_command_on_pod(pod_connection, f"[ -d {candidate} ] && echo YES || echo NO") or "").strip()
+            if is_dir.endswith("YES"):
+                folder_path = candidate
+                details.append(f"New folder detected: {folder_path}")
+                break
+        _time.sleep(poll_interval)
+
+    if folder_path is None:
+        details.append(f"No session folder found under {watch_dir} within {timeout}s")
+        return {"status": "Fail", "folder": None, "file_size": None, "details": details}
+
+    summary_path = f"{folder_path}/{summary_file}"
+    while _time.time() < end_time:
+        output = (run_command_on_pod(pod_connection, f"stat -c%s {summary_path} 2>/dev/null") or "").strip()
+        last_line = output.splitlines()[-1].strip() if output else ""
+        if last_line.isdigit():
+            file_size = int(last_line)
+            details.append(f"{summary_file} found! Size: {file_size} bytes")
+            return {"status": "Pass", "folder": folder_path, "file_size": file_size, "details": details}
+        _time.sleep(0.5)
+
+    details.append(f"{summary_path} not found within {timeout}s")
+    return {"status": "Fail", "folder": folder_path, "file_size": None, "details": details}

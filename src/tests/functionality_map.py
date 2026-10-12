@@ -445,6 +445,146 @@ FUNCTIONALITY_MAP = {
     "test_scheduler_no_pileup_deleter": {
         "Deleter": ["test_step"],
     },
+
+    # ─── INFERENCE ────────────────────────────────────────────────────
+    "test_inference_file_state_not_dnd_no_alerts": {
+        "Inertial Processing": ["test_step"],
+    },
+    "test_inference_inertial_starts_processing_with_valid_parameters": {
+        "Inertial Processing": ["test_step"],
+    },
+    "test_inference_completion_inertial_obs": {
+        "Inertial Processing": ["test_step"],
+    },
+    "test_inference_minified_obs_generation_inertial": {
+        "Inertial Processing": ["test_step"],
+    },
+    "test_inference_detailed_copy_obs_generation": {
+        "Inertial Processing": ["test_step"],
+    },
+    "test_inference_check_movement_of_hdfile_inertial_observation": {
+        "Inertial Processing": ["test_step"],
+    },
+    "test_inference_move_file_delete_state": {
+        "Inference State Machine": ["test_step"],
+    },
+    "test_inference_move_file_upload_state": {
+        "Inference State Machine": ["test_step"],
+    },
+    "test_inference_calls_deleter_delete_state": {
+        "Inference State Machine": ["test_step"],
+    },
+    "test_inference_calls_uploader_upload_state": {
+        "Inference State Machine": ["test_step"],
+    },
+    "test_inference_state_modified_vision_running_state": {
+        "Inference State Machine": ["test_step"],
+    },
+    "test_inference_run_metadata_summary": {
+        "Vision Inference": ["test_step"],
+    },
+    "test_inference_overwrites_summary_ld": {
+        "Inertial Processing": ["test_step"],
+    },
+    "test_inference_updates_collated_alerts": {
+        "Inference State Machine": ["test_step"],
+    },
+    "test_inference_starts_outward_nrt_with_valid_parameters": {
+        "Vision Inference": ["test_step"],
+    },
+    "test_inference_starts_inward_nrt_with_valid_parameters": {
+        "Vision Inference": ["test_step"],
+    },
+    "test_inference_session_nrt_completion_status": {
+        "Vision Inference": ["test_step"],
+    },
+    "test_inference_analysis_result_outward_inward_nrt": {
+        "Vision Inference": ["test_step"],
+    },
+    "test_inference_alert_flow_validation": {
+        "Inference State Machine": ["test_step"],
+    },
+    "test_inference_inertial_alerts": {
+        "DND & Alert Management": ["test_step"],
+    },
+    "test_inference_uploader_modifies_state_job_submit_state": {
+        "Uploader Workflow": ["test_step"],
+    },
+    "test_inference_uploader_engine_workflow": {
+        "Uploader Workflow": ["test_step"],
+    },
+    "test_inference_latency_check_incase_alert": {
+        "Latency": ["test_step"],
+    },
+    "test_inference_latency_check_without_alert": {
+        "Latency": ["test_step"],
+    },
+    "test_inference_deleter_checks_delete_state": {
+        "Inference State Machine": ["test_step"],
+    },
+    "test_inference_deleters_deletes_nd_output_nd_input_files": {
+        "Deleter": ["test_step"],
+    },
+    "test_inference_deletes_all_file_previous_session": {
+        "Deleter": ["test_step"],
+    },
+    "test_inference_deletes_folder_root_permission_in_ndoutput": {
+        "Deleter": ["test_step"],
+    },
+    "test_inference_deletes_multiple_files": {
+        "Deleter": ["test_step"],
+    },
+    "test_inference_no_pileup_deleter": {
+        "Deleter": ["test_step"],
+    },
+    "test_inference_ndcentral_recording_start_end_to_hs": {
+        "HealthStats": ["test_step"],
+    },
+    "test_inference_ndcentral_partial_file_recording_start_end_to_hs": {
+        "HealthStats": ["test_step"],
+    },
+    "test_inference_ndcentral_triggers_scheduler_manager": {
+        "Triggering": ["test_step"],
+    },
+    "test_inference_ndcentral_fails_to_trigger_scheduler": {
+        "Triggering": ["test_step"],
+    },
+    "test_inference_state_files_new_session": {
+        "Input/Output Handling": ["test_step"],
+    },
+    "test_inference_partial_file_process_backtoback_restart_bagheera": {
+        "Reliability": ["test_step"],
+    },
+    "test_inference_partial_file_process_linux_sign_crash": {
+        "Reliability": ["test_step"],
+    },
+    "test_inference_fields_updated_each_session_in_hs": {
+        "HealthStats": ["test_step"],
+    },
+    "test_inference_inertial_process": {
+        "Inertial Processing": ["test_step"],
+    },
+    "test_inference_obs_file_gen": {
+        "Inertial Processing": ["test_step"],
+    },
+    "test_inference_obs_file_deletion": {
+        "Inertial Processing": ["test_step"],
+    },
+    "test_inference_file_pileup_inertialobs": {
+        "Inertial Processing": ["test_step"],
+    },
+    "test_inference_metadata_user_alert": {
+        "DND & Alert Management": ["test_step"],
+    },
+    "test_inference_xattr_metadata_alert_session": {
+        "DND & Alert Management": ["test_step"],
+    },
+    "test_inference_alert_copied_to_sdcard": {
+        "Inference State Machine": ["test_step"],
+    },
+    "test_inference_summary_json_file_size": {
+        "Inference State Machine": ["test_step"],
+    },
 }
 
 
@@ -569,6 +709,52 @@ SERVICE_DISPLAY_NAMES = {
     "test_scheduler_no_attribute_error": "SCHEDULER",
     "test_scheduler_partial_file_process_backtoback_restart_bagheera": "SCHEDULER",
     "test_scheduler_no_pileup_deleter": "SCHEDULER",
+    "test_inference_file_state_not_dnd_no_alerts": "INFERENCE",
+    "test_inference_inertial_starts_processing_with_valid_parameters": "INFERENCE",
+    "test_inference_completion_inertial_obs": "INFERENCE",
+    "test_inference_minified_obs_generation_inertial": "INFERENCE",
+    "test_inference_detailed_copy_obs_generation": "INFERENCE",
+    "test_inference_check_movement_of_hdfile_inertial_observation": "INFERENCE",
+    "test_inference_move_file_delete_state": "INFERENCE",
+    "test_inference_move_file_upload_state": "INFERENCE",
+    "test_inference_calls_deleter_delete_state": "INFERENCE",
+    "test_inference_calls_uploader_upload_state": "INFERENCE",
+    "test_inference_state_modified_vision_running_state": "INFERENCE",
+    "test_inference_run_metadata_summary": "INFERENCE",
+    "test_inference_overwrites_summary_ld": "INFERENCE",
+    "test_inference_updates_collated_alerts": "INFERENCE",
+    "test_inference_starts_outward_nrt_with_valid_parameters": "INFERENCE",
+    "test_inference_starts_inward_nrt_with_valid_parameters": "INFERENCE",
+    "test_inference_session_nrt_completion_status": "INFERENCE",
+    "test_inference_analysis_result_outward_inward_nrt": "INFERENCE",
+    "test_inference_alert_flow_validation": "INFERENCE",
+    "test_inference_inertial_alerts": "INFERENCE",
+    "test_inference_uploader_modifies_state_job_submit_state": "INFERENCE",
+    "test_inference_uploader_engine_workflow": "INFERENCE",
+    "test_inference_latency_check_incase_alert": "INFERENCE",
+    "test_inference_latency_check_without_alert": "INFERENCE",
+    "test_inference_deleter_checks_delete_state": "INFERENCE",
+    "test_inference_deleters_deletes_nd_output_nd_input_files": "INFERENCE",
+    "test_inference_deletes_all_file_previous_session": "INFERENCE",
+    "test_inference_deletes_folder_root_permission_in_ndoutput": "INFERENCE",
+    "test_inference_deletes_multiple_files": "INFERENCE",
+    "test_inference_no_pileup_deleter": "INFERENCE",
+    "test_inference_ndcentral_recording_start_end_to_hs": "INFERENCE",
+    "test_inference_ndcentral_partial_file_recording_start_end_to_hs": "INFERENCE",
+    "test_inference_ndcentral_triggers_scheduler_manager": "INFERENCE",
+    "test_inference_ndcentral_fails_to_trigger_scheduler": "INFERENCE",
+    "test_inference_state_files_new_session": "INFERENCE",
+    "test_inference_partial_file_process_backtoback_restart_bagheera": "INFERENCE",
+    "test_inference_partial_file_process_linux_sign_crash": "INFERENCE",
+    "test_inference_fields_updated_each_session_in_hs": "INFERENCE",
+    "test_inference_inertial_process": "INFERENCE",
+    "test_inference_obs_file_gen": "INFERENCE",
+    "test_inference_obs_file_deletion": "INFERENCE",
+    "test_inference_file_pileup_inertialobs": "INFERENCE",
+    "test_inference_metadata_user_alert": "INFERENCE",
+    "test_inference_xattr_metadata_alert_session": "INFERENCE",
+    "test_inference_alert_copied_to_sdcard": "INFERENCE",
+    "test_inference_summary_json_file_size": "INFERENCE",
 }
 
 

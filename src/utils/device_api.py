@@ -166,6 +166,11 @@ DEVICE_API: dict[str, dict[str, str]] = {
         "returns": "dict",
         "description": "Block/restore device API calls to host via /etc/hosts loopback redirect; {status, host, details}",
     },
+    "get_inference_summary": {
+        "signature": "watch_dir='/home/iriscli/ND_OUTPUT', summary_file='summary.json', timeout=180",
+        "returns": "dict",
+        "description": "Wait for the newest session folder's inference summary file and return its size (ported from nd_test_bot's get_inference_summary); {status, folder, file_size, details}",
+    },
     "run_command_iteratively": {
         "signature": "command, iteration, timeout, not_desired_output=None, revert=False",
         "returns": "dict",

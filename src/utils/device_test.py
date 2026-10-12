@@ -269,6 +269,13 @@ class DeviceTest:
         self._log(f"run_command_iteratively({command})", result.get("output"))
         return result
 
+    def get_inference_summary(self, watch_dir: str = "/home/iriscli/ND_OUTPUT", summary_file: str = "summary.json",
+                               timeout: int = 180) -> Dict[str, Any]:
+        """Wait for the newest session's inference summary file and return its size in bytes."""
+        result = device_checks.get_inference_summary(self._pod_connection, watch_dir, summary_file, timeout)
+        self._log(f"get_inference_summary({watch_dir}, {summary_file})", result)
+        return result
+
     def get_hs_db_latest_entry_ts(self, session: str, db_path: str = "/home/ubuntu/.nddevice/db/healthstats.db",
                                    retries: int = 4, retry_delay: int = 10) -> Dict[str, Any]:
         """Get the timestamp (ms) of the latest healthstats.db entry for a session (e.g. 'health_info:cpu_info')."""
