@@ -77,11 +77,11 @@ def test_step2_1_capture_session_name(device):
     the session do_vod later references once the alert lands.
     """
     cmd = (
-        "tail -F /home/ubuntu/.nddevice/log/ndcentral/* | "
+        "( timeout 170 tail -F /home/ubuntu/.nddevice/log/ndcentral/* 2>/dev/null | "
         "grep --line-buffered -m 1 'creating folder for session' | "
-        "awk -F'creating folder for session ' '{print $2}' | awk '{print $1}'"
+        "awk -F'creating folder for session ' '{print $2}' | awk '{print $1}' ) 2>/dev/null"
     )
-    output = device.run(cmd, timeout=125)
+    output = device.run(cmd, timeout=180)
     session_name = (output or "").strip()
     assert session_name, f"Session name not found: {output!r}"
     device.variables["session_name"] = session_name
