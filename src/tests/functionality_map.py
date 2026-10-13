@@ -98,6 +98,34 @@ FUNCTIONALITY_MAP = {
         "Scheduling & Timing": ["test_step"],
     },
 
+    # ─── SUPERVISORD ──────────────────────────────────────────────────
+    # Keyed by file stem (like OTACHECK/SERVICEMONITOR) since every file
+    # under src/tests/supervisord/ uses the shared test_stepN_... naming.
+    "test_supervisord_start_up_nd_is_binary": {
+        "Startup & PID 1": ["test_step"],
+    },
+    "test_supervisord_startup_sequence": {
+        "Startup & PID 1": ["test_step"],
+    },
+    "test_supervisord_logs_availability": {
+        "Logging & Rotation": ["test_step"],
+    },
+    "test_supervisord_restart_each_service": {
+        "supervisorctl Commands": ["test_step"],
+    },
+    "test_supervisord_unexpected_service_state": {
+        "Startup & PID 1": ["test_step"],
+    },
+    "test_supervisord_kill_service_and_recover": {
+        "Process Group": ["test_step"],
+    },
+    "test_supervisord_valid_process_group": {
+        "Process Group": ["test_step"],
+    },
+    "test_supervisord_intentional_service_crash": {
+        "Auto-restart & Failure": ["test_step"],
+    },
+
     # ─── SERVICEMONITOR ───────────────────────────────────────────────
     # Each file under src/tests/servicemonitor/ uses the same step names
     # (test_step1_..., test_step2_..., etc.) across every service, so they
