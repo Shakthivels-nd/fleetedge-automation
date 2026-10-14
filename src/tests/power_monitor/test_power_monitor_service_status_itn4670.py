@@ -1,7 +1,7 @@
 from src.utils.engine.connection import clean_output
 
 
-def test_power_monitor_service_status(device):
+def test_power_monitor_service_status_itn4670(device):
     """Check that the power_monitor service is running (no other checks required)."""
     cmd = "supervisorctl status power_monitor"
     output = device.run(cmd, "/home/ubuntu/.nddevice/latest/service/")

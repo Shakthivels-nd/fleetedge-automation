@@ -132,64 +132,64 @@ FUNCTIONALITY_MAP = {
     # can't be told apart by test name alone within a shared "servicemonitor"
     # key — _resolve_module_key() falls back to the file stem in that case,
     # so each service gets its own entry here keyed by its file's stem.
-    "test_bagheera_status_check": {
+    "test_bagheera_status_check_itn4654": {
         "Service Monitor — bagheera": ["test_step"],
     },
-    "test_svc_status_check": {
+    "test_svc_status_check_itn4666": {
         "Service Monitor — svc": ["test_step"],
     },
-    "test_awsiot_status_check": {
+    "test_awsiot_status_check_itn4653": {
         "Service Monitor — awsiot": ["test_step"],
     },
-    "test_circular_buffer_status_check": {
+    "test_circular_buffer_status_check_itn4655": {
         "Service Monitor — circular_buffer": ["test_step"],
     },
-    "test_power_monitor_status_check": {
+    "test_power_monitor_status_check_itn4662": {
         "Service Monitor — power_monitor": ["test_step"],
     },
-    "test_scheduler_manager_status_check": {
+    "test_scheduler_manager_status_check_itn4663": {
         "Service Monitor — scheduler_manager": ["test_step"],
     },
-    "test_speed_status_check": {
+    "test_speed_status_check_itn4665": {
         "Service Monitor — speed": ["test_step"],
     },
-    "test_time_sync_status_check": {
+    "test_time_sync_status_check_itn4667": {
         "Service Monitor — time_sync": ["test_step"],
     },
-    "test_uploader_status_check": {
+    "test_uploader_status_check_itn4669": {
         "Service Monitor — uploader": ["test_step"],
     },
-    "test_outward_analytics_client_status_check": {
+    "test_outward_analytics_client_status_check_itn4660": {
         "Service Monitor — outwardAnalyticsClient": ["test_step"],
     },
-    "test_analytics_service_status_check": {
+    "test_analytics_service_status_check_itn4651": {
         "Service Monitor — analyticsService": ["test_step"],
     },
-    "test_healthstatsmanager_status_check": {
+    "test_healthstatsmanager_status_check_itn4656": {
         "Service Monitor — HealthStatsManager": ["test_step"],
     },
-    "test_sendmetricgrpc_status_check": {
+    "test_sendmetricgrpc_status_check_itn4664": {
         "Service Monitor — SendMetricgRPC": ["test_step"],
     },
-    "test_audio_playback_status_check": {
+    "test_audio_playback_status_check_itn4652": {
         "Service Monitor — audioPlayback": ["test_step"],
     },
-    "test_inward_analytics_client_status_check": {
+    "test_inward_analytics_client_status_check_itn4657": {
         "Service Monitor — inwardAnalyticsClient": ["test_step"],
     },
-    "test_nd_fe_alerts_status_check": {
+    "test_nd_fe_alerts_status_check_itn4658": {
         "Service Monitor — nd_fe_alerts": ["test_step"],
     },
     "test_nd_suspendresume_status_check": {
         "Service Monitor — nd_suspendresume": ["test_step"],
     },
-    "test_nd_system_status_status_check": {
+    "test_nd_system_status_status_check_itn4659": {
         "Service Monitor — nd_system_status": ["test_step"],
     },
-    "test_podlogger_status_check": {
+    "test_podlogger_status_check_itn4661": {
         "Service Monitor — podlogger": ["test_step"],
     },
-    "test_unified_analytics_client_status_check": {
+    "test_unified_analytics_client_status_check_itn4668": {
         "Service Monitor — unifiedAnalyticsClient": ["test_step"],
     },
 
@@ -198,49 +198,49 @@ FUNCTIONALITY_MAP = {
     # scheme (see live_report.py's STEP_NAME_PATTERN grouping), so — same
     # reasoning as SERVICEMONITOR above — they're keyed individually by
     # file stem rather than a shared "awsiot" folder key.
-    "test_awsiot_ping_keepalive_reboot": {
+    "test_awsiot_ping_keepalive_reboot_itn4633": {
         "Ping & Reboot": ["test_step"],
     },
-    "test_awsiot_ping_request_reboot_phone": {
+    "test_awsiot_ping_request_reboot_phone_itn4634": {
         "Ping & Reboot": ["test_step"],
     },
-    "test_awsiot_reboot_request_to_powermon": {
+    "test_awsiot_reboot_request_to_powermon_itn4635": {
         "Ping & Reboot": ["test_step"],
     },
-    "test_awsiot_api_call_versioncheck": {
+    "test_awsiot_api_call_versioncheck_itn4623": {
         "Ping & Reboot": ["test_step"],
     },
-    "test_awsiot_verify_connection_ignition_high": {
+    "test_awsiot_verify_connection_ignition_high_itn4641": {
         "Connection & Server": ["test_step"],
     },
-    "test_awsiot_verify_connection_no_network": {
+    "test_awsiot_verify_connection_no_network_itn4642": {
         "Connection & Server": ["test_step"],
     },
-    "test_awsiot_server_connected_or_not": {
+    "test_awsiot_server_connected_or_not_itn4637": {
         "Connection & Server": ["test_step"],
     },
-    "test_awsiot_verify_server_address": {
+    "test_awsiot_verify_server_address_itn4621": {
         "Connection & Server": ["test_step"],
     },
-    "test_awsiot_verify_logging": {
+    "test_awsiot_verify_logging_itn4646": {
         "Connection & Server": ["test_step"],
     },
-    "test_awsiot_check_private_key": {
+    "test_awsiot_check_private_key_itn4627": {
         "Certificates & Keys": ["test_step"],
     },
-    "test_awsiot_check_public_key": {
+    "test_awsiot_check_public_key_itn4628": {
         "Certificates & Keys": ["test_step"],
     },
-    "test_awsiot_check_certificates": {
+    "test_awsiot_check_certificates_itn4625": {
         "Certificates & Keys": ["test_step"],
     },
-    "test_awsiot_check_encryption_and_permission_of_private_keys": {
+    "test_awsiot_check_encryption_and_permission_of_private_keys_itn4626": {
         "Certificates & Keys": ["test_step"],
     },
-    "test_awsiot_verify_ka_certificate_check": {
+    "test_awsiot_verify_ka_certificate_check_itn4645": {
         "Certificates & Keys": ["test_step"],
     },
-    "test_awsiot_verify_iot_priv_key_decryption_before_connect": {
+    "test_awsiot_verify_iot_priv_key_decryption_before_connect_itn4644": {
         "Certificates & Keys": ["test_step"],
     },
     # test_awsiot_verify_private_awsiot_key_encryption_on_regeneration,
@@ -252,177 +252,177 @@ FUNCTIONALITY_MAP = {
     # corruption tests leave the device degraded until self-heal, and FE
     # has a known issue that makes this category not applicable. See
     # PORT_TRACKER.csv for the skip reasons (known_issue_cert_corruption).
-    "test_awsiot_eventdata_api_call": {
+    "test_awsiot_eventdata_api_call_itn4629": {
         "Event Data & Upload": ["test_step"],
     },
-    "test_awsiot_eventdata_api_response": {
+    "test_awsiot_eventdata_api_response_itn4630": {
         "Event Data & Upload": ["test_step"],
     },
-    "test_awsiot_receive_video_request": {
+    "test_awsiot_receive_video_request_itn4650": {
         "Event Data & Upload": ["test_step"],
     },
-    "test_awsiot_send_request_to_uploader": {
+    "test_awsiot_send_request_to_uploader_itn4636": {
         "Event Data & Upload": ["test_step"],
     },
-    "test_awsiot_state_change_to_upload_state": {
+    "test_awsiot_state_change_to_upload_state_itn4640": {
         "Event Data & Upload": ["test_step"],
     },
-    "test_awsiot_verify_payload": {
+    "test_awsiot_verify_payload_itn4647": {
         "Shadow Payload": ["test_step"],
     },
-    "test_awsiot_service_status_check": {
+    "test_awsiot_service_status_check_itn4639": {
         "Service Health": ["test_step"],
     },
-    "test_awsiot_service_stability": {
+    "test_awsiot_service_stability_itn4638": {
         "Service Health": ["test_step"],
     },
-    "test_awsiot_msgq_creation": {
+    "test_awsiot_msgq_creation_itn4631": {
         "Service Health": ["test_step"],
     },
-    "test_awsiot_check_binary_and_permissions": {
+    "test_awsiot_check_binary_and_permissions_itn4624": {
         "Service Health": ["test_step"],
     },
-    "test_awsiot_override_parse_check": {
+    "test_awsiot_override_parse_check_itn4632": {
         "Configuration": ["test_step"],
     },
-    "test_awsiot_verify_vehicle_class": {
+    "test_awsiot_verify_vehicle_class_itn4649": {
         "Configuration": ["test_step"],
     },
-    "test_awsiot_verify_publish_enabled": {
+    "test_awsiot_verify_publish_enabled_itn4648": {
         "Configuration": ["test_step"],
     },
-    "test_awsiot_verify_gps_publish_frequency": {
+    "test_awsiot_verify_gps_publish_frequency_itn4643": {
         "Configuration": ["test_step"],
     },
-    "test_awsiot_all_cameras_enabled": {
+    "test_awsiot_all_cameras_enabled_itn4622": {
         "Configuration": ["test_step"],
     },
 
     # ─── SCHEDULER ────────────────────────────────────────────────────
-    "test_scheduler_msgq_creation_related_services": {
+    "test_scheduler_msgq_creation_related_services_itn4709": {
         "Msgq Creation": ["test_step"],
     },
-    "test_scheduler_runs_wrapper_scheduler_every_min": {
+    "test_scheduler_runs_wrapper_scheduler_every_min_itn4725": {
         "Scheduling Cadence": ["test_step"],
     },
-    "test_scheduler_file_pileup": {
+    "test_scheduler_file_pileup_itn4688": {
         "Input/Output Handling": ["test_step"],
     },
-    "test_scheduler_enters_file_valid_input_set": {
+    "test_scheduler_enters_file_valid_input_set_itn4685": {
         "Input/Output Handling": ["test_step"],
     },
-    "test_scheduler_deletes_file_invalid_input_set": {
+    "test_scheduler_deletes_file_invalid_input_set_itn4681": {
         "Input/Output Handling": ["test_step"],
     },
-    "test_scheduler_ndcentral_triggers_scheduler_manager": {
+    "test_scheduler_ndcentral_triggers_scheduler_manager_itn4713": {
         "Triggering": ["test_step"],
     },
-    "test_scheduler_manager_triggers_scheduler": {
+    "test_scheduler_manager_triggers_scheduler_itn4706": {
         "Triggering": ["test_step"],
     },
-    "test_scheduler_ndcentral_fails_to_trigger_scheduler": {
+    "test_scheduler_ndcentral_fails_to_trigger_scheduler_itn4710": {
         "Triggering": ["test_step"],
     },
-    "test_scheduler_file_state_not_dnd_no_alerts": {
+    "test_scheduler_file_state_not_dnd_no_alerts_itn4689": {
         "Inertial Processing": ["test_step"],
     },
-    "test_scheduler_complete_file_operation": {
+    "test_scheduler_complete_file_operation_itn4676": {
         "Input/Output Handling": ["test_step"],
     },
-    "test_scheduler_inertial_starts_processing_with_valid_parameters": {
+    "test_scheduler_inertial_starts_processing_with_valid_parameters_itn4694": {
         "Inertial Processing": ["test_step"],
     },
-    "test_scheduler_completion_inertial_obs": {
+    "test_scheduler_completion_inertial_obs_itn4677": {
         "Inertial Processing": ["test_step"],
     },
-    "test_scheduler_detailed_copy_obs_generation": {
+    "test_scheduler_detailed_copy_obs_generation_itn4684": {
         "Inertial Processing": ["test_step"],
     },
-    "test_scheduler_check_movement_of_hdfile_inertial_observation": {
+    "test_scheduler_check_movement_of_hdfile_inertial_observation_itn4675": {
         "Inertial Processing": ["test_step"],
     },
-    "test_scheduler_inference_move_file_delete_state": {
+    "test_scheduler_inference_move_file_delete_state_itn4697": {
         "Inference State Machine": ["test_step"],
     },
-    "test_scheduler_inference_move_file_upload_state": {
+    "test_scheduler_inference_move_file_upload_state_itn4698": {
         "Inference State Machine": ["test_step"],
     },
-    "test_scheduler_inference_calls_deleter_delete_state": {
+    "test_scheduler_inference_calls_deleter_delete_state_itn4695": {
         "Inference State Machine": ["test_step"],
     },
-    "test_scheduler_inference_calls_uploader_upload_state": {
+    "test_scheduler_inference_calls_uploader_upload_state_itn4696": {
         "Inference State Machine": ["test_step"],
     },
-    "test_scheduler_state_modified_vision_running_state": {
+    "test_scheduler_state_modified_vision_running_state_itn4731": {
         "Inference State Machine": ["test_step"],
     },
-    "test_scheduler_inference_run_metadata_summary": {
+    "test_scheduler_inference_run_metadata_summary_itn4700": {
         "Vision Inference": ["test_step"],
     },
-    "test_scheduler_starts_outward_nrt_with_valid_parameters": {
+    "test_scheduler_starts_outward_nrt_with_valid_parameters_itn4729": {
         "Vision Inference": ["test_step"],
     },
-    "test_scheduler_starts_inward_nrt_with_valid_parameters": {
+    "test_scheduler_starts_inward_nrt_with_valid_parameters_itn4728": {
         "Vision Inference": ["test_step"],
     },
-    "test_scheduler_session_nrt_completion_status": {
+    "test_scheduler_session_nrt_completion_status_itn4727": {
         "Vision Inference": ["test_step"],
     },
-    "test_scheduler_analysis_result_outward_inward_nrt": {
+    "test_scheduler_analysis_result_outward_inward_nrt_itn4674": {
         "Vision Inference": ["test_step"],
     },
-    "test_scheduler_inference_updates_collated_alerts": {
+    "test_scheduler_inference_updates_collated_alerts_itn4701": {
         "Inference State Machine": ["test_step"],
     },
-    "test_scheduler_uploader_modifies_state_job_submit_state": {
+    "test_scheduler_uploader_modifies_state_job_submit_state_itn4733": {
         "Uploader Workflow": ["test_step"],
     },
-    "test_scheduler_uploader_engine_workflow": {
+    "test_scheduler_uploader_engine_workflow_itn4732": {
         "Uploader Workflow": ["test_step"],
     },
-    "test_scheduler_latency_check_without_alert": {
+    "test_scheduler_latency_check_without_alert_itn4703": {
         "Latency": ["test_step"],
     },
-    "test_scheduler_latency_check_incase_alert": {
+    "test_scheduler_latency_check_incase_alert_itn4702": {
         "Latency": ["test_step"],
     },
-    "test_scheduler_deleter_checks_delete_state": {
+    "test_scheduler_deleter_checks_delete_state_itn4678": {
         "Inference State Machine": ["test_step"],
     },
-    "test_scheduler_deleters_deletes_nd_output_nd_input_files": {
+    "test_scheduler_deleters_deletes_nd_output_nd_input_files_itn4679": {
         "Deleter": ["test_step"],
     },
-    "test_scheduler_deletes_all_file_previous_session": {
+    "test_scheduler_deletes_all_file_previous_session_itn4680": {
         "Deleter": ["test_step"],
     },
-    "test_scheduler_processed_file_written_to_disk": {
+    "test_scheduler_processed_file_written_to_disk_itn4722": {
         "Input/Output Handling": ["test_step"],
     },
-    "test_scheduler_file_locking_behaviour": {
+    "test_scheduler_file_locking_behaviour_itn4687": {
         "Input/Output Handling": ["test_step"],
     },
-    "test_scheduler_wrapper_otacheck_crontab": {
+    "test_scheduler_wrapper_otacheck_crontab_itn4735": {
         "Crontab": ["test_step"],
     },
-    "test_scheduler_wrapper_cleanupstate_crontab": {
+    "test_scheduler_wrapper_cleanupstate_crontab_itn4734": {
         "Crontab": ["test_step"],
     },
-    "test_scheduler_wrapper_scheduler_removed_from_user_crontab": {
+    "test_scheduler_wrapper_scheduler_removed_from_user_crontab_itn4737": {
         "Crontab": ["test_step"],
     },
-    "test_scheduler_wrapper_otacheck_removed_user_crontab": {
+    "test_scheduler_wrapper_otacheck_removed_user_crontab_itn4736": {
         "Crontab": ["test_step"],
     },
-    "test_scheduler_folder_permission_nd_output": {
+    "test_scheduler_folder_permission_nd_output_itn4692": {
         "Input/Output Handling": ["test_step"],
     },
-    "test_scheduler_deletes_folder_root_permission_in_ndoutput": {
+    "test_scheduler_deletes_folder_root_permission_in_ndoutput_itn4682": {
         "Deleter": ["test_step"],
     },
-    "test_scheduler_state_files_new_session": {
+    "test_scheduler_state_files_new_session_itn4730": {
         "Input/Output Handling": ["test_step"],
     },
-    "test_scheduler_deletes_multiple_files": {
+    "test_scheduler_deletes_multiple_files_itn4683": {
         "Deleter": ["test_step"],
     },
     "test_scheduler_healthstats_network_info": {
@@ -431,108 +431,108 @@ FUNCTIONALITY_MAP = {
     "test_scheduler_healthstats_signal_info": {
         "HealthStats": ["test_step"],
     },
-    "test_scheduler_ndcentral_recording_start_end_to_hs": {
+    "test_scheduler_ndcentral_recording_start_end_to_hs_itn4712": {
         "HealthStats": ["test_step"],
     },
-    "test_scheduler_ndcentral_partial_file_recording_start_end_to_hs": {
+    "test_scheduler_ndcentral_partial_file_recording_start_end_to_hs_itn4711": {
         "HealthStats": ["test_step"],
     },
-    "test_scheduler_fields_updated_each_session_in_hs": {
+    "test_scheduler_fields_updated_each_session_in_hs_itn4686": {
         "HealthStats": ["test_step"],
     },
-    "test_scheduler_no_traceback": {
+    "test_scheduler_no_traceback_itn4717": {
         "Reliability": ["test_step"],
     },
-    "test_scheduler_logs_writing_and_logs_uploading": {
+    "test_scheduler_logs_writing_and_logs_uploading_itn4705": {
         "Logging": ["test_step"],
     },
-    "test_scheduler_log_format_related_files": {
+    "test_scheduler_log_format_related_files_itn4704": {
         "Logging": ["test_step"],
     },
-    "test_scheduler_partial_file_process_linux_sign_crash": {
+    "test_scheduler_partial_file_process_linux_sign_crash_itn4721": {
         "Reliability": ["test_step"],
     },
-    "test_scheduler_queue_overflow_more_files_run_state": {
+    "test_scheduler_queue_overflow_more_files_run_state_itn4724": {
         "Queue Overflow": ["test_step"],
     },
-    "test_scheduler_oldest_file_dropped_first_queue_overflow": {
+    "test_scheduler_oldest_file_dropped_first_queue_overflow_itn4718": {
         "Queue Overflow": ["test_step"],
     },
-    "test_scheduler_queue_every_min": {
+    "test_scheduler_queue_every_min_itn4723": {
         "Queue Overflow": ["test_step"],
     },
-    "test_scheduler_not_crashing_during_queue_overflow": {
+    "test_scheduler_not_crashing_during_queue_overflow_itn4716": {
         "Queue Overflow": ["test_step"],
     },
-    "test_scheduler_no_attribute_error": {
+    "test_scheduler_no_attribute_error_itn4714": {
         "Reliability": ["test_step"],
     },
-    "test_scheduler_partial_file_process_backtoback_restart_bagheera": {
+    "test_scheduler_partial_file_process_backtoback_restart_bagheera_itn4720": {
         "Reliability": ["test_step"],
     },
-    "test_scheduler_no_pileup_deleter": {
+    "test_scheduler_no_pileup_deleter_itn4715": {
         "Deleter": ["test_step"],
     },
 
     # ─── INFERENCE ────────────────────────────────────────────────────
-    "test_inference_file_state_not_dnd_no_alerts": {
+    "test_inference_file_state_not_dnd_no_alerts_itn4745": {
         "Inertial Processing": ["test_step"],
     },
-    "test_inference_inertial_starts_processing_with_valid_parameters": {
+    "test_inference_inertial_starts_processing_with_valid_parameters_itn4748": {
         "Inertial Processing": ["test_step"],
     },
-    "test_inference_completion_inertial_obs": {
+    "test_inference_completion_inertial_obs_itn4743": {
         "Inertial Processing": ["test_step"],
     },
-    "test_inference_minified_obs_generation_inertial": {
+    "test_inference_minified_obs_generation_inertial_itn4749": {
         "Inertial Processing": ["test_step"],
     },
-    "test_inference_detailed_copy_obs_generation": {
+    "test_inference_detailed_copy_obs_generation_itn4744": {
         "Inertial Processing": ["test_step"],
     },
-    "test_inference_check_movement_of_hdfile_inertial_observation": {
+    "test_inference_check_movement_of_hdfile_inertial_observation_itn4742": {
         "Inertial Processing": ["test_step"],
     },
-    "test_inference_move_file_delete_state": {
+    "test_inference_move_file_delete_state_itn4750": {
         "Inference State Machine": ["test_step"],
     },
-    "test_inference_move_file_upload_state": {
+    "test_inference_move_file_upload_state_itn4751": {
         "Inference State Machine": ["test_step"],
     },
-    "test_inference_calls_deleter_delete_state": {
+    "test_inference_calls_deleter_delete_state_itn4740": {
         "Inference State Machine": ["test_step"],
     },
-    "test_inference_calls_uploader_upload_state": {
+    "test_inference_calls_uploader_upload_state_itn4741": {
         "Inference State Machine": ["test_step"],
     },
-    "test_inference_state_modified_vision_running_state": {
+    "test_inference_state_modified_vision_running_state_itn4757": {
         "Inference State Machine": ["test_step"],
     },
-    "test_inference_run_metadata_summary": {
+    "test_inference_run_metadata_summary_itn4753": {
         "Vision Inference": ["test_step"],
     },
-    "test_inference_overwrites_summary_ld": {
+    "test_inference_overwrites_summary_ld_itn4752": {
         "Inertial Processing": ["test_step"],
     },
-    "test_inference_updates_collated_alerts": {
+    "test_inference_updates_collated_alerts_itn4758": {
         "Inference State Machine": ["test_step"],
     },
-    "test_inference_starts_outward_nrt_with_valid_parameters": {
+    "test_inference_starts_outward_nrt_with_valid_parameters_itn4756": {
         "Vision Inference": ["test_step"],
     },
-    "test_inference_starts_inward_nrt_with_valid_parameters": {
+    "test_inference_starts_inward_nrt_with_valid_parameters_itn4755": {
         "Vision Inference": ["test_step"],
     },
-    "test_inference_session_nrt_completion_status": {
+    "test_inference_session_nrt_completion_status_itn4754": {
         "Vision Inference": ["test_step"],
     },
-    "test_inference_analysis_result_outward_inward_nrt": {
+    "test_inference_analysis_result_outward_inward_nrt_itn4739": {
         "Vision Inference": ["test_step"],
     },
-    "test_inference_alert_flow_validation": {
+    "test_inference_alert_flow_validation_itn4738": {
         "Inference State Machine": ["test_step"],
     },
-    "test_inference_inertial_alerts": {
+    "test_inference_inertial_alerts_itn4746": {
         "DND & Alert Management": ["test_step"],
     },
     "test_inference_uploader_modifies_state_job_submit_state": {
@@ -589,7 +589,7 @@ FUNCTIONALITY_MAP = {
     "test_inference_fields_updated_each_session_in_hs": {
         "HealthStats": ["test_step"],
     },
-    "test_inference_inertial_process": {
+    "test_inference_inertial_process_itn4747": {
         "Inertial Processing": ["test_step"],
     },
     "test_inference_obs_file_gen": {
@@ -629,134 +629,134 @@ SERVICE_DISPLAY_NAMES = {
     "test_otacheck_current_version_logged": "otacheck",
     "test_otacheck_sleep_based_on_device_id_modulo": "otacheck",
     "test_otacheck_rtc_time_not_in_sync": "otacheck",
-    "test_bagheera_status_check": "Service Monitor",
-    "test_svc_status_check": "Service Monitor",
-    "test_awsiot_status_check": "Service Monitor",
-    "test_circular_buffer_status_check": "Service Monitor",
-    "test_power_monitor_status_check": "Service Monitor",
-    "test_scheduler_manager_status_check": "Service Monitor",
-    "test_speed_status_check": "Service Monitor",
-    "test_time_sync_status_check": "Service Monitor",
-    "test_uploader_status_check": "Service Monitor",
-    "test_outward_analytics_client_status_check": "Service Monitor",
-    "test_analytics_service_status_check": "Service Monitor",
-    "test_healthstatsmanager_status_check": "Service Monitor",
-    "test_sendmetricgrpc_status_check": "Service Monitor",
-    "test_audio_playback_status_check": "Service Monitor",
-    "test_inward_analytics_client_status_check": "Service Monitor",
-    "test_nd_fe_alerts_status_check": "Service Monitor",
+    "test_bagheera_status_check_itn4654": "Service Monitor",
+    "test_svc_status_check_itn4666": "Service Monitor",
+    "test_awsiot_status_check_itn4653": "Service Monitor",
+    "test_circular_buffer_status_check_itn4655": "Service Monitor",
+    "test_power_monitor_status_check_itn4662": "Service Monitor",
+    "test_scheduler_manager_status_check_itn4663": "Service Monitor",
+    "test_speed_status_check_itn4665": "Service Monitor",
+    "test_time_sync_status_check_itn4667": "Service Monitor",
+    "test_uploader_status_check_itn4669": "Service Monitor",
+    "test_outward_analytics_client_status_check_itn4660": "Service Monitor",
+    "test_analytics_service_status_check_itn4651": "Service Monitor",
+    "test_healthstatsmanager_status_check_itn4656": "Service Monitor",
+    "test_sendmetricgrpc_status_check_itn4664": "Service Monitor",
+    "test_audio_playback_status_check_itn4652": "Service Monitor",
+    "test_inward_analytics_client_status_check_itn4657": "Service Monitor",
+    "test_nd_fe_alerts_status_check_itn4658": "Service Monitor",
     "test_nd_suspendresume_status_check": "Service Monitor",
-    "test_nd_system_status_status_check": "Service Monitor",
-    "test_podlogger_status_check": "Service Monitor",
-    "test_unified_analytics_client_status_check": "Service Monitor",
-    "test_awsiot_ping_keepalive_reboot": "AWSIOT",
-    "test_awsiot_ping_request_reboot_phone": "AWSIOT",
-    "test_awsiot_reboot_request_to_powermon": "AWSIOT",
-    "test_awsiot_api_call_versioncheck": "AWSIOT",
-    "test_awsiot_verify_connection_ignition_high": "AWSIOT",
-    "test_awsiot_verify_connection_no_network": "AWSIOT",
-    "test_awsiot_server_connected_or_not": "AWSIOT",
-    "test_awsiot_verify_server_address": "AWSIOT",
-    "test_awsiot_verify_logging": "AWSIOT",
-    "test_awsiot_check_private_key": "AWSIOT",
-    "test_awsiot_check_public_key": "AWSIOT",
-    "test_awsiot_check_certificates": "AWSIOT",
-    "test_awsiot_check_encryption_and_permission_of_private_keys": "AWSIOT",
-    "test_awsiot_verify_ka_certificate_check": "AWSIOT",
-    "test_awsiot_verify_iot_priv_key_decryption_before_connect": "AWSIOT",
-    "test_awsiot_eventdata_api_call": "AWSIOT",
-    "test_awsiot_eventdata_api_response": "AWSIOT",
-    "test_awsiot_receive_video_request": "AWSIOT",
-    "test_awsiot_send_request_to_uploader": "AWSIOT",
-    "test_awsiot_state_change_to_upload_state": "AWSIOT",
-    "test_awsiot_verify_payload": "AWSIOT",
-    "test_awsiot_service_status_check": "AWSIOT",
-    "test_awsiot_service_stability": "AWSIOT",
-    "test_awsiot_msgq_creation": "AWSIOT",
-    "test_awsiot_check_binary_and_permissions": "AWSIOT",
-    "test_awsiot_override_parse_check": "AWSIOT",
-    "test_awsiot_verify_vehicle_class": "AWSIOT",
-    "test_awsiot_verify_publish_enabled": "AWSIOT",
-    "test_awsiot_verify_gps_publish_frequency": "AWSIOT",
-    "test_awsiot_all_cameras_enabled": "AWSIOT",
-    "test_scheduler_msgq_creation_related_services": "SCHEDULER",
-    "test_scheduler_runs_wrapper_scheduler_every_min": "SCHEDULER",
-    "test_scheduler_file_pileup": "SCHEDULER",
-    "test_scheduler_enters_file_valid_input_set": "SCHEDULER",
-    "test_scheduler_deletes_file_invalid_input_set": "SCHEDULER",
-    "test_scheduler_ndcentral_triggers_scheduler_manager": "SCHEDULER",
-    "test_scheduler_manager_triggers_scheduler": "SCHEDULER",
-    "test_scheduler_ndcentral_fails_to_trigger_scheduler": "SCHEDULER",
-    "test_scheduler_file_state_not_dnd_no_alerts": "SCHEDULER",
-    "test_scheduler_complete_file_operation": "SCHEDULER",
-    "test_scheduler_inertial_starts_processing_with_valid_parameters": "SCHEDULER",
-    "test_scheduler_completion_inertial_obs": "SCHEDULER",
-    "test_scheduler_detailed_copy_obs_generation": "SCHEDULER",
-    "test_scheduler_check_movement_of_hdfile_inertial_observation": "SCHEDULER",
-    "test_scheduler_inference_move_file_delete_state": "SCHEDULER",
-    "test_scheduler_inference_move_file_upload_state": "SCHEDULER",
-    "test_scheduler_inference_calls_deleter_delete_state": "SCHEDULER",
-    "test_scheduler_inference_calls_uploader_upload_state": "SCHEDULER",
-    "test_scheduler_state_modified_vision_running_state": "SCHEDULER",
-    "test_scheduler_inference_run_metadata_summary": "SCHEDULER",
-    "test_scheduler_starts_outward_nrt_with_valid_parameters": "SCHEDULER",
-    "test_scheduler_starts_inward_nrt_with_valid_parameters": "SCHEDULER",
-    "test_scheduler_session_nrt_completion_status": "SCHEDULER",
-    "test_scheduler_analysis_result_outward_inward_nrt": "SCHEDULER",
-    "test_scheduler_inference_updates_collated_alerts": "SCHEDULER",
-    "test_scheduler_uploader_modifies_state_job_submit_state": "SCHEDULER",
-    "test_scheduler_uploader_engine_workflow": "SCHEDULER",
-    "test_scheduler_latency_check_without_alert": "SCHEDULER",
-    "test_scheduler_latency_check_incase_alert": "SCHEDULER",
-    "test_scheduler_deleter_checks_delete_state": "SCHEDULER",
-    "test_scheduler_deleters_deletes_nd_output_nd_input_files": "SCHEDULER",
-    "test_scheduler_deletes_all_file_previous_session": "SCHEDULER",
-    "test_scheduler_processed_file_written_to_disk": "SCHEDULER",
-    "test_scheduler_file_locking_behaviour": "SCHEDULER",
-    "test_scheduler_wrapper_otacheck_crontab": "SCHEDULER",
-    "test_scheduler_wrapper_cleanupstate_crontab": "SCHEDULER",
-    "test_scheduler_wrapper_scheduler_removed_from_user_crontab": "SCHEDULER",
-    "test_scheduler_wrapper_otacheck_removed_user_crontab": "SCHEDULER",
-    "test_scheduler_folder_permission_nd_output": "SCHEDULER",
-    "test_scheduler_deletes_folder_root_permission_in_ndoutput": "SCHEDULER",
-    "test_scheduler_state_files_new_session": "SCHEDULER",
-    "test_scheduler_deletes_multiple_files": "SCHEDULER",
+    "test_nd_system_status_status_check_itn4659": "Service Monitor",
+    "test_podlogger_status_check_itn4661": "Service Monitor",
+    "test_unified_analytics_client_status_check_itn4668": "Service Monitor",
+    "test_awsiot_ping_keepalive_reboot_itn4633": "AWSIOT",
+    "test_awsiot_ping_request_reboot_phone_itn4634": "AWSIOT",
+    "test_awsiot_reboot_request_to_powermon_itn4635": "AWSIOT",
+    "test_awsiot_api_call_versioncheck_itn4623": "AWSIOT",
+    "test_awsiot_verify_connection_ignition_high_itn4641": "AWSIOT",
+    "test_awsiot_verify_connection_no_network_itn4642": "AWSIOT",
+    "test_awsiot_server_connected_or_not_itn4637": "AWSIOT",
+    "test_awsiot_verify_server_address_itn4621": "AWSIOT",
+    "test_awsiot_verify_logging_itn4646": "AWSIOT",
+    "test_awsiot_check_private_key_itn4627": "AWSIOT",
+    "test_awsiot_check_public_key_itn4628": "AWSIOT",
+    "test_awsiot_check_certificates_itn4625": "AWSIOT",
+    "test_awsiot_check_encryption_and_permission_of_private_keys_itn4626": "AWSIOT",
+    "test_awsiot_verify_ka_certificate_check_itn4645": "AWSIOT",
+    "test_awsiot_verify_iot_priv_key_decryption_before_connect_itn4644": "AWSIOT",
+    "test_awsiot_eventdata_api_call_itn4629": "AWSIOT",
+    "test_awsiot_eventdata_api_response_itn4630": "AWSIOT",
+    "test_awsiot_receive_video_request_itn4650": "AWSIOT",
+    "test_awsiot_send_request_to_uploader_itn4636": "AWSIOT",
+    "test_awsiot_state_change_to_upload_state_itn4640": "AWSIOT",
+    "test_awsiot_verify_payload_itn4647": "AWSIOT",
+    "test_awsiot_service_status_check_itn4639": "AWSIOT",
+    "test_awsiot_service_stability_itn4638": "AWSIOT",
+    "test_awsiot_msgq_creation_itn4631": "AWSIOT",
+    "test_awsiot_check_binary_and_permissions_itn4624": "AWSIOT",
+    "test_awsiot_override_parse_check_itn4632": "AWSIOT",
+    "test_awsiot_verify_vehicle_class_itn4649": "AWSIOT",
+    "test_awsiot_verify_publish_enabled_itn4648": "AWSIOT",
+    "test_awsiot_verify_gps_publish_frequency_itn4643": "AWSIOT",
+    "test_awsiot_all_cameras_enabled_itn4622": "AWSIOT",
+    "test_scheduler_msgq_creation_related_services_itn4709": "SCHEDULER",
+    "test_scheduler_runs_wrapper_scheduler_every_min_itn4725": "SCHEDULER",
+    "test_scheduler_file_pileup_itn4688": "SCHEDULER",
+    "test_scheduler_enters_file_valid_input_set_itn4685": "SCHEDULER",
+    "test_scheduler_deletes_file_invalid_input_set_itn4681": "SCHEDULER",
+    "test_scheduler_ndcentral_triggers_scheduler_manager_itn4713": "SCHEDULER",
+    "test_scheduler_manager_triggers_scheduler_itn4706": "SCHEDULER",
+    "test_scheduler_ndcentral_fails_to_trigger_scheduler_itn4710": "SCHEDULER",
+    "test_scheduler_file_state_not_dnd_no_alerts_itn4689": "SCHEDULER",
+    "test_scheduler_complete_file_operation_itn4676": "SCHEDULER",
+    "test_scheduler_inertial_starts_processing_with_valid_parameters_itn4694": "SCHEDULER",
+    "test_scheduler_completion_inertial_obs_itn4677": "SCHEDULER",
+    "test_scheduler_detailed_copy_obs_generation_itn4684": "SCHEDULER",
+    "test_scheduler_check_movement_of_hdfile_inertial_observation_itn4675": "SCHEDULER",
+    "test_scheduler_inference_move_file_delete_state_itn4697": "SCHEDULER",
+    "test_scheduler_inference_move_file_upload_state_itn4698": "SCHEDULER",
+    "test_scheduler_inference_calls_deleter_delete_state_itn4695": "SCHEDULER",
+    "test_scheduler_inference_calls_uploader_upload_state_itn4696": "SCHEDULER",
+    "test_scheduler_state_modified_vision_running_state_itn4731": "SCHEDULER",
+    "test_scheduler_inference_run_metadata_summary_itn4700": "SCHEDULER",
+    "test_scheduler_starts_outward_nrt_with_valid_parameters_itn4729": "SCHEDULER",
+    "test_scheduler_starts_inward_nrt_with_valid_parameters_itn4728": "SCHEDULER",
+    "test_scheduler_session_nrt_completion_status_itn4727": "SCHEDULER",
+    "test_scheduler_analysis_result_outward_inward_nrt_itn4674": "SCHEDULER",
+    "test_scheduler_inference_updates_collated_alerts_itn4701": "SCHEDULER",
+    "test_scheduler_uploader_modifies_state_job_submit_state_itn4733": "SCHEDULER",
+    "test_scheduler_uploader_engine_workflow_itn4732": "SCHEDULER",
+    "test_scheduler_latency_check_without_alert_itn4703": "SCHEDULER",
+    "test_scheduler_latency_check_incase_alert_itn4702": "SCHEDULER",
+    "test_scheduler_deleter_checks_delete_state_itn4678": "SCHEDULER",
+    "test_scheduler_deleters_deletes_nd_output_nd_input_files_itn4679": "SCHEDULER",
+    "test_scheduler_deletes_all_file_previous_session_itn4680": "SCHEDULER",
+    "test_scheduler_processed_file_written_to_disk_itn4722": "SCHEDULER",
+    "test_scheduler_file_locking_behaviour_itn4687": "SCHEDULER",
+    "test_scheduler_wrapper_otacheck_crontab_itn4735": "SCHEDULER",
+    "test_scheduler_wrapper_cleanupstate_crontab_itn4734": "SCHEDULER",
+    "test_scheduler_wrapper_scheduler_removed_from_user_crontab_itn4737": "SCHEDULER",
+    "test_scheduler_wrapper_otacheck_removed_user_crontab_itn4736": "SCHEDULER",
+    "test_scheduler_folder_permission_nd_output_itn4692": "SCHEDULER",
+    "test_scheduler_deletes_folder_root_permission_in_ndoutput_itn4682": "SCHEDULER",
+    "test_scheduler_state_files_new_session_itn4730": "SCHEDULER",
+    "test_scheduler_deletes_multiple_files_itn4683": "SCHEDULER",
     "test_scheduler_healthstats_network_info": "SCHEDULER",
     "test_scheduler_healthstats_signal_info": "SCHEDULER",
-    "test_scheduler_ndcentral_recording_start_end_to_hs": "SCHEDULER",
-    "test_scheduler_ndcentral_partial_file_recording_start_end_to_hs": "SCHEDULER",
-    "test_scheduler_fields_updated_each_session_in_hs": "SCHEDULER",
-    "test_scheduler_no_traceback": "SCHEDULER",
-    "test_scheduler_logs_writing_and_logs_uploading": "SCHEDULER",
-    "test_scheduler_log_format_related_files": "SCHEDULER",
-    "test_scheduler_partial_file_process_linux_sign_crash": "SCHEDULER",
-    "test_scheduler_queue_overflow_more_files_run_state": "SCHEDULER",
-    "test_scheduler_oldest_file_dropped_first_queue_overflow": "SCHEDULER",
-    "test_scheduler_queue_every_min": "SCHEDULER",
-    "test_scheduler_not_crashing_during_queue_overflow": "SCHEDULER",
-    "test_scheduler_no_attribute_error": "SCHEDULER",
-    "test_scheduler_partial_file_process_backtoback_restart_bagheera": "SCHEDULER",
-    "test_scheduler_no_pileup_deleter": "SCHEDULER",
-    "test_inference_file_state_not_dnd_no_alerts": "INFERENCE",
-    "test_inference_inertial_starts_processing_with_valid_parameters": "INFERENCE",
-    "test_inference_completion_inertial_obs": "INFERENCE",
-    "test_inference_minified_obs_generation_inertial": "INFERENCE",
-    "test_inference_detailed_copy_obs_generation": "INFERENCE",
-    "test_inference_check_movement_of_hdfile_inertial_observation": "INFERENCE",
-    "test_inference_move_file_delete_state": "INFERENCE",
-    "test_inference_move_file_upload_state": "INFERENCE",
-    "test_inference_calls_deleter_delete_state": "INFERENCE",
-    "test_inference_calls_uploader_upload_state": "INFERENCE",
-    "test_inference_state_modified_vision_running_state": "INFERENCE",
-    "test_inference_run_metadata_summary": "INFERENCE",
-    "test_inference_overwrites_summary_ld": "INFERENCE",
-    "test_inference_updates_collated_alerts": "INFERENCE",
-    "test_inference_starts_outward_nrt_with_valid_parameters": "INFERENCE",
-    "test_inference_starts_inward_nrt_with_valid_parameters": "INFERENCE",
-    "test_inference_session_nrt_completion_status": "INFERENCE",
-    "test_inference_analysis_result_outward_inward_nrt": "INFERENCE",
-    "test_inference_alert_flow_validation": "INFERENCE",
-    "test_inference_inertial_alerts": "INFERENCE",
+    "test_scheduler_ndcentral_recording_start_end_to_hs_itn4712": "SCHEDULER",
+    "test_scheduler_ndcentral_partial_file_recording_start_end_to_hs_itn4711": "SCHEDULER",
+    "test_scheduler_fields_updated_each_session_in_hs_itn4686": "SCHEDULER",
+    "test_scheduler_no_traceback_itn4717": "SCHEDULER",
+    "test_scheduler_logs_writing_and_logs_uploading_itn4705": "SCHEDULER",
+    "test_scheduler_log_format_related_files_itn4704": "SCHEDULER",
+    "test_scheduler_partial_file_process_linux_sign_crash_itn4721": "SCHEDULER",
+    "test_scheduler_queue_overflow_more_files_run_state_itn4724": "SCHEDULER",
+    "test_scheduler_oldest_file_dropped_first_queue_overflow_itn4718": "SCHEDULER",
+    "test_scheduler_queue_every_min_itn4723": "SCHEDULER",
+    "test_scheduler_not_crashing_during_queue_overflow_itn4716": "SCHEDULER",
+    "test_scheduler_no_attribute_error_itn4714": "SCHEDULER",
+    "test_scheduler_partial_file_process_backtoback_restart_bagheera_itn4720": "SCHEDULER",
+    "test_scheduler_no_pileup_deleter_itn4715": "SCHEDULER",
+    "test_inference_file_state_not_dnd_no_alerts_itn4745": "INFERENCE",
+    "test_inference_inertial_starts_processing_with_valid_parameters_itn4748": "INFERENCE",
+    "test_inference_completion_inertial_obs_itn4743": "INFERENCE",
+    "test_inference_minified_obs_generation_inertial_itn4749": "INFERENCE",
+    "test_inference_detailed_copy_obs_generation_itn4744": "INFERENCE",
+    "test_inference_check_movement_of_hdfile_inertial_observation_itn4742": "INFERENCE",
+    "test_inference_move_file_delete_state_itn4750": "INFERENCE",
+    "test_inference_move_file_upload_state_itn4751": "INFERENCE",
+    "test_inference_calls_deleter_delete_state_itn4740": "INFERENCE",
+    "test_inference_calls_uploader_upload_state_itn4741": "INFERENCE",
+    "test_inference_state_modified_vision_running_state_itn4757": "INFERENCE",
+    "test_inference_run_metadata_summary_itn4753": "INFERENCE",
+    "test_inference_overwrites_summary_ld_itn4752": "INFERENCE",
+    "test_inference_updates_collated_alerts_itn4758": "INFERENCE",
+    "test_inference_starts_outward_nrt_with_valid_parameters_itn4756": "INFERENCE",
+    "test_inference_starts_inward_nrt_with_valid_parameters_itn4755": "INFERENCE",
+    "test_inference_session_nrt_completion_status_itn4754": "INFERENCE",
+    "test_inference_analysis_result_outward_inward_nrt_itn4739": "INFERENCE",
+    "test_inference_alert_flow_validation_itn4738": "INFERENCE",
+    "test_inference_inertial_alerts_itn4746": "INFERENCE",
     "test_inference_uploader_modifies_state_job_submit_state": "INFERENCE",
     "test_inference_uploader_engine_workflow": "INFERENCE",
     "test_inference_latency_check_incase_alert": "INFERENCE",
@@ -775,7 +775,7 @@ SERVICE_DISPLAY_NAMES = {
     "test_inference_partial_file_process_backtoback_restart_bagheera": "INFERENCE",
     "test_inference_partial_file_process_linux_sign_crash": "INFERENCE",
     "test_inference_fields_updated_each_session_in_hs": "INFERENCE",
-    "test_inference_inertial_process": "INFERENCE",
+    "test_inference_inertial_process_itn4747": "INFERENCE",
     "test_inference_obs_file_gen": "INFERENCE",
     "test_inference_obs_file_deletion": "INFERENCE",
     "test_inference_file_pileup_inertialobs": "INFERENCE",
